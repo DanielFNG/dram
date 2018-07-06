@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ExOptDocument Version="0.1">
+	<DatasetDescriptor name="GaitMetrics">
+	    <Strings>
+	        <SubjectPrefix> S </SubjectPrefix>
+	        <DataFolderName> Data </DataFolderName>
+	        <ModelFolderName> Scaling </ModelFolderName>
+	    </Strings>
+	    <ContextParameters>
+	        <NParameters> 2 </NParameters>
+	        <ModelParameterIndex> 1 </ModelParameterIndex>
+	        <NamedParameter>
+	            <Index> 1 </Index>
+	            <Name> Assistance </Index> 
+	        </NamedParameter>
+	        <NamedParameter>
+	            <Index> 2 </Index>
+	            <Name> Context </Index>
+	        </NamedParameter> 
+	    </ContextParameters>
+	    <ModelSet>
+	        <Model>
+	            <Name> no_APO </Name>
+	            <ParameterValues> 1 </ParameterValues>
+	        </Model>
+	        <Model>
+	            <Name> APO </Name>
+	            <ParameterValues> 2 3 </ParameterValues>
+	        </Model>
+	    </ModelSet>
+	</DatasetDescriptor
+</ExOptDocument>
