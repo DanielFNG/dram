@@ -8,16 +8,13 @@
             <ModelFolderName> Scaling </ModelFolderName>
         </Strings>
         <ContextParameters>
-            <NParameters> 2 </NParameters>
-            <ModelParameterIndex> 1 </ModelParameterIndex>
-            <NamedParameter>
-                <Index> 1 </Index>
-                <Name> Assistance </Index> 
-            </NamedParameter>
-            <NamedParameter>
-                <Index> 2 </Index>
-                <Name> Context </Index>
-            </NamedParameter> 
+            <Parameter>
+                <Name> Assistance </Name>
+            </Parameter>
+            <Parameter>
+                <Name> Context </Name>
+            </Parameter>
+            <ModelParameter> Assistance </ModelParameter>
         </ContextParameters>
         <ModelSet>
             <Model>
