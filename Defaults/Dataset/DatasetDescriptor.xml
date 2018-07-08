@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <ExOptDocument Version="0.1">
-    <DatasetDescriptor name="GaitMetrics">
+    <DatasetDescriptor>
+        <Name> GaitMetrics </Name>
         <Strings>
             <SubjectPrefix> S </SubjectPrefix>
             <DataFolderName> Data </DataFolderName>
@@ -20,11 +21,11 @@
         </ContextParameters>
         <ModelSet>
             <Model>
-                <Name> no_APO </Name>
+                <Name> no_APO.osim </Name>
                 <ParameterValues> 1 </ParameterValues>
             </Model>
             <Model>
-                <Name> APO </Name>
+                <Name> APO.osim </Name>
                 <ParameterValues> 2 3 </ParameterValues>
             </Model>
         </ModelSet>
