@@ -11,7 +11,7 @@ classdef Dataset < handle
         ModelFolderName
         NContextParameters
         ModelParameter
-        ModelParameterIndex
+        ModelParameterIndex                                                
         NModels
         ModelNames
         ModelIndices
@@ -45,7 +45,7 @@ classdef Dataset < handle
             % Parse the parameter list and create an ordered list of parameter 
             % values.
             if length(varargin) == 1
-                if length(varargin{1} ~= obj.NContextParameters)
+                if length(varargin{1}) ~= obj.NContextParameters
                     error(['The number of parameter values given to ' ...
                         'constructDataPath does not match the number of ' ...
                         'context parameters in this Dataset.']);
@@ -55,10 +55,10 @@ classdef Dataset < handle
             elseif length(varargin) == 2 * obj.NContextParameters
                 param_values = zeros(obj.NContextParameters, 1);
                 for i=1:2:2 * obj.NContextParameters - 1
-                    if ~find(strcmp(obj.ContextParameters, varargin{i}))
+                    if ~strcmp(obj.ContextParameters, varargin{i})
                         error('Context parameter name not recognised.');
                     else
-                        param_values(find(strcmp(obj.ContextParameters, ...
+                        param_values(strcmp(obj.ContextParameters, ...
                             varargin{i})) = varargin{i + 1};
                     end
                 end
@@ -72,7 +72,7 @@ classdef Dataset < handle
             param_path = [];
             for i=1:obj.NContextParameters
                 param_path = [param_path obj.ContextParameters{i} ...
-                    num2str(param_values(i))];
+                    num2str(param_values(i))]; %#ok<*AGROW>
             end
             path = [root filesep obj.SubjectPrefix num2str(subject) ...
                 filesep obj.DataFolderName filesep param_path];
@@ -84,9 +84,6 @@ classdef Dataset < handle
         % the correct model file, therefore the input mvalue must be an 
         % integer. 
         function path = constructModelPath(obj, root, subject, mvalue)
-        end
-
-            
         end
         
     end
