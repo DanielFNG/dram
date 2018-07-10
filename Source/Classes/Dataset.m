@@ -4,87 +4,53 @@ classdef Dataset < handle
         SubsetName
         DatasetName
         ContextParameters
-        ParameterValues
     end
     
-    properties (GetAccess = private, SetAccess = private)
+    properties % (GetAccess = private, SetAccess = private)
         SubjectPrefix
         DataFolderName
         ModelFolderName
         NContextParameters
-        ModelParameter                                                
+        ModelParameter
+        ModelParameterIndex
+        NModels
         ModelMap
         DesiredParameters
+        SubsetRoot
+    end
+    
+    properties
+        ComputedIK = false
+        ComputedAdjustmentRRA = false
+        ComputedRRA = false
+        ComputedBodyKinematics = false
+        ComputedID = false
+        ComputedCMC = false
     end
     
     methods
         
-        % Desired parameters should either be a cell array of length 
-        % obj.NContextParameters, where each element is a vector of parameters 
-        % to go through, or a set of name-value pairs providing the same
-        % information.  
-        function obj = Dataset(name, root, desired_parameters)
+        % The varargin entry should represent a desired parameter list,
+        % provided as a set of name-value pairs i.e. the name of a
+        % parameter followed by a vector of values which that parameter
+        % should take within this dataset. 
+        function obj = Dataset(name, root, varargin)
             if nargin > 0
                 obj.SubsetName = name;
-                obj.parseDatasetDescriptor(root);
-                obj.DesiredParameters = desired_parameters;
+                obj.SubsetRoot = root;
+                obj.parseDatasetDescriptor();
+                obj.DesiredParameters = containers.Map(...
+                    obj.ContextParameters, obj.parseParameterList(varargin));
+                obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
+                    obj.ModelParameter));
             end
-        end
-        
-        % Construct the path to the raw data files for a certain combination
-        % of context parameters. The input argument(s) should either be a 
-        % vector of ordered values corresponding to the context parameters, or 
-        % a list of name-value pairs.
-        function path = constructDataPath(obj, root, subject, varargin)
-        
-            % Parse the parameter list and create an ordered list of parameter 
-            % values.
-            if length(varargin) == 1
-                if length(varargin{1}) ~= obj.NContextParameters
-                    error(['The number of parameter values given to ' ...
-                        'constructDataPath does not match the number of ' ...
-                        'context parameters in this Dataset.']);
-                else
-                    param_values = varargin{1}; 
-                end
-            elseif length(varargin) == 2 * obj.NContextParameters
-                param_values = zeros(obj.NContextParameters, 1);
-                for i=1:2:2 * obj.NContextParameters - 1
-                    if ~strcmp(obj.ContextParameters, varargin{i})
-                        error('Context parameter name not recognised.');
-                    else
-                        param_values(strcmp(obj.ContextParameters, ...
-                            varargin{i})) = varargin{i + 1};
-                    end
-                end
-            else
-                error(['The number of parameter values given to ' ...
-                        'constructDataPath does not match the number of ' ...
-                        'context parameters in this Dataset.']);
-            end
-            
-            % Create the path to the appropriate data folder. 
-            param_path = [];
-            for i=1:obj.NContextParameters
-                param_path = [param_path obj.ContextParameters{i} ...
-                    num2str(param_values(i))]; %#ok<*AGROW>
-            end
-            path = [root filesep obj.SubjectPrefix num2str(subject) ...
-                filesep obj.DataFolderName filesep param_path];
-        end
-        
-        % This serves a similar purpose to constructDataPath, however this 
-        % results in an exact path to a model file. Additionally, this function
-        % must take in to account only the ModelParameter in order to identify 
-        % the correct model file, therefore the input mvalue must be an 
-        % integer. 
-        function path = constructModelPath(obj, root, subject, mvalue)
         end
     
-        function parseDatasetDescriptor(obj, root)
+        function parseDatasetDescriptor(obj)
 
             % Parse the DatasetDescriptor file.
-            xml_data = xmlread([root filesep 'DatasetDescriptor.xml']);
+            xml_data = xmlread([obj.SubsetRoot filesep ...
+                'DatasetDescriptor.xml']);
 
             % Get the dataset name.
             obj.DatasetName = strtrim(char(...
@@ -105,8 +71,8 @@ classdef Dataset < handle
             % Get the context parameter data.
             parameters = xml_data.getElementsByTagName('Parameter');
             obj.NContextParameters = parameters.getLength();
-            parameter_names = cell(context_info.n_context_parameters, 1);
-            for i=0:context_info.n_context_parameters - 1
+            parameter_names = cell(obj.NContextParameters, 1);
+            for i=0:obj.NContextParameters - 1
                 parameter_names{i + 1} = ...
                     strtrim(char(parameters.item(i). ...
                     getElementsByTagName('Name'). ...
@@ -120,10 +86,10 @@ classdef Dataset < handle
             % Get the model set data.
             model_set = xml_data.getElementsByTagName('Model');
             obj.NModels = model_set.getLength();
-            model_names = cell(model_info.n_models, 1);
-            model_indices = cell(model_info.n_models, 1);
+            model_names = cell(obj.NModels, 1);
+            model_indices = cell(obj.NModels, 1);
             k = 1;
-            for i=0:model_info.n_models - 1
+            for i=0:obj.NModels - 1
                 model_names{i + 1} = strtrim(char(model_set.item(i). ...
                     getElementsByTagName('Name').item(0).item(0).getData()));
                 model_indices{i + 1} = str2num(strtrim(char(...
@@ -137,7 +103,97 @@ classdef Dataset < handle
             end
             obj.ModelMap = containers.Map(map_key, map_value);
         end
-    
+        
+        function parsed_param_list = parseParameterList(obj, param_list)
+            if length(param_list) == 2 * obj.NContextParameters
+                parsed_param_list = cell(obj.NContextParameters, 1);
+                for i=1:2:2 * obj.NContextParameters - 1
+                    if ~strcmp(obj.ContextParameters, param_list{i})
+                        error('Context parameter name not recognised.');
+                    else
+                        parsed_param_list{strcmp(obj.ContextParameters, ...
+                            param_list{i})} = param_list{i + 1};
+                    end
+                end
+            else
+                error(['The number of parameter values given ' ...
+                    'does not match the number of ' ...
+                    'context parameters in this Dataset.']);
+            end
+        end
+        
+        % Varargin should be a list of strings corresponding to the
+        % operations to be carried out. Since paralellism will be used,
+        % these cannot be assumed to be performed in order. 
+        function processRawData(obj, varargin)
+            
+            % Some constraints. 
+            
+        end
+        
+        function deleteData(obj, handles)
+            
+        end
+        
     end
+    
+    methods %(Access = private)
+        
+        function name = constructParameterString(obj, parameters)
+            name = [];
+            for i=1:obj.NContextParameters
+                name = [name obj.ContextParameters{i} ...
+                    num2str(parameters(i)) filesep]; %#ok<*AGROW>
+            end
+        end
+        
+        % Construct the path to the raw data files for a certain combination
+        % of context parameters. The input argument should be an ordered
+        % vector of context parameter values.
+        function path = constructRawDataPath(obj, subject, parameters)
+            
+            % Create the path to the appropriate data folder.
+            path = [obj.SubsetRoot filesep obj.SubjectPrefix ...
+                num2str(subject) filesep obj.DataFolderName filesep ...
+                obj.constructParameterString(parameters)];
+        end
+        
+        % This serves a similar purpose to constructDataPath, however this
+        % results in an exact path to a model file. This accepts a full
+        % list of parameter values but simply checks the value of the
+        % ModelParameter.
+        function path = constructModelPath(obj, subject, parameters)
+            
+            % Create the path to the appropriate model. 
+            path = [obj.SubsetRoot filesep obj.SubjectPrefix ...
+                num2str(subject) filesep obj.ModelFolderName filesep ...
+                obj.ModelMap(parameters(obj.ModelParameterIndex))];
+            
+        end
+        
+        function path = constructKinematicDataPath(...
+                obj, mode, subject, parameters)
+            if strcmp(mode, 'RRA')
+                if obj.ComputedRRA
+                    folder = 'RRA_Results';
+                else
+                    error('RRA has not been computed for this dataset.');
+                end
+            elseif strcmp(mode, 'IK')
+                if obj.ComputedIK
+                    folder = 'IK_Results';
+                else
+                    error('IK has not been computed for this dataset.');
+                end
+            else
+                error('Mode not recognised.');
+            end
+            path = ...
+                [obj.constructRawDataPath(subject, parameters) filesep folder];
+        end
+        
+    end
+    
+    
     
 end

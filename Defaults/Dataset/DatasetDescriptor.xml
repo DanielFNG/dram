@@ -8,11 +8,17 @@
             <ModelFolderName> Scaling </ModelFolderName>
         </Strings>
         <ContextParameters>
-            <Parameter>
-                <Name> Assistance </Name>
-            </Parameter>
+			<Parameter>
+				<Name> Foot </Name>
+				<NValues> 2 </NValues>
+			</Parameter>
             <Parameter>
                 <Name> Context </Name>
+				<NValues> 10 </NValues>
+            </Parameter>
+            <Parameter>
+                <Name> Assistance </Name>
+				<NValues> 3 </NValues>
             </Parameter>
             <ModelParameter> Assistance </ModelParameter>
         </ContextParameters>
@@ -26,5 +32,12 @@
                 <ParameterValues> 2 3 </ParameterValues>
             </Model>
         </ModelSet>
+		<OpenSimDirectories>
+			<IK> IK_Results </IK>
+			<RRA> RRA_Results </RRA>
+			<ID> ID_Results </ID>
+			<BodyKinematics> BodyKinematics_Results </BodyKinematics>
+			<CMC> CMC_Results </CMC>
+		</OpenSimDirectories>
     </DatasetDescriptor>
 </ExOptDocument>
