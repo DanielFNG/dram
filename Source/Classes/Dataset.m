@@ -1,8 +1,10 @@
 classdef Dataset < handle
    
     properties (SetAccess = private)
-        Name
+        SubsetName
+        DatasetName
         ContextParameters
+        ParameterValues
     end
     
     properties (GetAccess = private, SetAccess = private)
@@ -10,29 +12,22 @@ classdef Dataset < handle
         DataFolderName
         ModelFolderName
         NContextParameters
-        ModelParameter
-        ModelParameterIndex                                                
-        NModels
-        ModelNames
-        ModelIndices
+        ModelParameter                                                
+        ModelMap
+        DesiredParameters
     end
     
     methods
-       
-        function obj = Dataset(name, strings, contexts, models)
+        
+        % Desired parameters should either be a cell array of length 
+        % obj.NContextParameters, where each element is a vector of parameters 
+        % to go through, or a set of name-value pairs providing the same
+        % information.  
+        function obj = Dataset(name, root, desired_parameters)
             if nargin > 0
-                obj.Name = name;
-                obj.SubjectPrefix = strings.subject_prefix;
-                obj.DataFolderName = strings.data_folder;
-                obj.ModelFolderName = strings.model_folder;
-                obj.NContextParameters = contexts.n_context_parameters;
-                obj.ContextParameters = contexts.parameter_names;
-                obj.ModelParameter = contexts.model_parameter;                 
-                obj.ModelParameterIndex = find(strcmp(...
-                    obj.ContextParameters, obj.ModelParameter));
-                obj.NModels = models.n_models;
-                obj.ModelNames = models.model_names;
-                obj.ModelIndices = models.model_indices;
+                obj.SubsetName = name;
+                obj.parseDatasetDescriptor(root);
+                obj.DesiredParameters = desired_parameters;
             end
         end
         
@@ -85,7 +80,64 @@ classdef Dataset < handle
         % integer. 
         function path = constructModelPath(obj, root, subject, mvalue)
         end
-        
+    
+        function parseDatasetDescriptor(obj, root)
+
+            % Parse the DatasetDescriptor file.
+            xml_data = xmlread([root filesep 'DatasetDescriptor.xml']);
+
+            % Get the dataset name.
+            obj.DatasetName = strtrim(char(...
+                xml_data.getElementsByTagName('Name').item(0). ...
+                    item(0).getData()));
+
+            % Get the descriptor strings. 
+            obj.SubjectPrefix = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'SubjectPrefix').item(0).item(0).getData()));
+            obj.DataFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'DataFolderName').item(0).item(0).getData()));
+            obj.ModelFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'ModelFolderName').item(0).item(0).getData()));
+
+            % Get the context parameter data.
+            parameters = xml_data.getElementsByTagName('Parameter');
+            obj.NContextParameters = parameters.getLength();
+            parameter_names = cell(context_info.n_context_parameters, 1);
+            for i=0:context_info.n_context_parameters - 1
+                parameter_names{i + 1} = ...
+                    strtrim(char(parameters.item(i). ...
+                    getElementsByTagName('Name'). ...
+                    item(0).item(0).getData()));
+            end
+            obj.ContextParameters = parameter_names;
+            obj.ModelParameter = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'ModelParameter').item(0).item(0).getData()));
+    
+            % Get the model set data.
+            model_set = xml_data.getElementsByTagName('Model');
+            obj.NModels = model_set.getLength();
+            model_names = cell(model_info.n_models, 1);
+            model_indices = cell(model_info.n_models, 1);
+            k = 1;
+            for i=0:model_info.n_models - 1
+                model_names{i + 1} = strtrim(char(model_set.item(i). ...
+                    getElementsByTagName('Name').item(0).item(0).getData()));
+                model_indices{i + 1} = str2num(strtrim(char(...
+                    model_set.item(i).getElementsByTagName(...
+                    'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
+                for j=1:length(model_indices{i+1})
+                    map_key{k} = model_indices{i + 1}(j);
+                    map_value{k} = model_names{i + 1};
+                    k = k + 1;
+                end
+            end
+            obj.ModelMap = containers.Map(map_key, map_value);
+        end
+    
     end
     
 end
