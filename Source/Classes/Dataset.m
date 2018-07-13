@@ -15,17 +15,9 @@ classdef Dataset < handle
         ModelParameterIndex
         NModels
         ModelMap
+        DesiredSubjects
         DesiredParameters
         SubsetRoot
-    end
-    
-    properties
-        ComputedIK = false
-        ComputedAdjustmentRRA = false
-        ComputedRRA = false
-        ComputedBodyKinematics = false
-        ComputedID = false
-        ComputedCMC = false
     end
     
     methods
@@ -34,11 +26,12 @@ classdef Dataset < handle
         % provided as a set of name-value pairs i.e. the name of a
         % parameter followed by a vector of values which that parameter
         % should take within this dataset. 
-        function obj = Dataset(name, root, varargin)
+        function obj = Dataset(name, root, subjects, varargin)
             if nargin > 0
                 obj.SubsetName = name;
                 obj.SubsetRoot = root;
                 obj.parseDatasetDescriptor();
+                obj.DesiredSubjects = subjects;
                 obj.DesiredParameters = containers.Map(...
                     obj.ContextParameters, obj.parseParameterList(varargin));
                 obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
