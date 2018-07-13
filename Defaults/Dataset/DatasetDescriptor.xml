@@ -23,12 +23,15 @@
             <ModelParameter> Assistance </ModelParameter>
         </ContextParameters>
         <ModelSet>
+            <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
             <Model>
                 <Name> no_APO.osim </Name>
+                <Load> normal </Load> 
                 <ParameterValues> 1 </ParameterValues>
             </Model>
             <Model>
                 <Name> APO.osim </Name>
+                <Load> apo </Load>
                 <ParameterValues> 2 3 </ParameterValues>
             </Model>
         </ModelSet>

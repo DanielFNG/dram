@@ -1,9 +1,12 @@
 classdef Dataset < handle
    
     properties (SetAccess = private)
-        SubsetName
         DatasetName
         ContextParameters
+        ModelParameter
+        SubsetName
+        DesiredSubjects
+        DesiredParameters
     end
     
     properties % (GetAccess = private, SetAccess = private)
@@ -11,12 +14,11 @@ classdef Dataset < handle
         DataFolderName
         ModelFolderName
         NContextParameters
-        ModelParameter
         ModelParameterIndex
+        AdjustmentSuffix
         NModels
         ModelMap
-        DesiredSubjects
-        DesiredParameters
+        LoadMap
         SubsetRoot
     end
     
@@ -75,26 +77,34 @@ classdef Dataset < handle
             obj.ModelParameter = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ModelParameter').item(0).item(0).getData()));
+            obj.AdjustmentSuffix = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'AdjustmentSuffix').item(0).item(0).getData()));
     
             % Get the model set data.
             model_set = xml_data.getElementsByTagName('Model');
             obj.NModels = model_set.getLength();
             model_names = cell(obj.NModels, 1);
+            model_loads = cell(obj.NModels, 1);
             model_indices = cell(obj.NModels, 1);
             k = 1;
             for i=0:obj.NModels - 1
                 model_names{i + 1} = strtrim(char(model_set.item(i). ...
                     getElementsByTagName('Name').item(0).item(0).getData()));
+                model_loads{i + 1} = strtrim(char(model_set.item(i). ...
+                    getElementsByTagName('Load').item(0).item(0).getData()));
                 model_indices{i + 1} = str2num(strtrim(char(...
                     model_set.item(i).getElementsByTagName(...
                     'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
                 for j=1:length(model_indices{i+1})
                     map_key{k} = model_indices{i + 1}(j);
                     map_value{k} = model_names{i + 1};
+                    load_map_value{k} = model_loads{i + 1};
                     k = k + 1;
                 end
             end
             obj.ModelMap = containers.Map(map_key, map_value);
+            obj.LoadMap = containers.Map(map_key, load_map_value);
         end
         
         function parsed_param_list = parseParameterList(obj, param_list)
@@ -115,40 +125,26 @@ classdef Dataset < handle
             end
         end
         
-        % Varargin should be a list of strings corresponding to the
-        % operations to be carried out. Since paralellism will be used,
-        % these cannot be assumed to be performed in order. 
-        function processRawData(obj, varargin)
-            
-            % Some constraints. 
-            
-        end
-        
-        function deleteData(obj, handles)
-            
-        end
-        
     end
     
     methods %(Access = private)
-        
-        function name = constructParameterString(obj, parameters)
-            name = [];
-            for i=1:obj.NContextParameters
-                name = [name obj.ContextParameters{i} ...
-                    num2str(parameters(i)) filesep]; %#ok<*AGROW>
-            end
-        end
         
         % Construct the path to the raw data files for a certain combination
         % of context parameters. The input argument should be an ordered
         % vector of context parameter values.
         function path = constructRawDataPath(obj, subject, parameters)
             
+            % Create the parameter string.
+            name = [];
+            for i=1:obj.NContextParameters
+                name = [name obj.ContextParameters{i} ...
+                    num2str(parameters(i)) filesep]; %#ok<*AGROW>
+            end
+            
             % Create the path to the appropriate data folder.
             path = [obj.SubsetRoot filesep obj.SubjectPrefix ...
                 num2str(subject) filesep obj.DataFolderName filesep ...
-                obj.constructParameterString(parameters)];
+                name];
         end
         
         % This serves a similar purpose to constructDataPath, however this
@@ -162,6 +158,14 @@ classdef Dataset < handle
                 num2str(subject) filesep obj.ModelFolderName filesep ...
                 obj.ModelMap(parameters(obj.ModelParameterIndex))];
             
+        end
+        
+        function path = constructAdjustedModelPath(obj, subject, parameters)
+            
+            % Create the path to the appropriate model. 
+            [path, name, ext] = ...
+                fileparts(obj.constructModelPath(subject, parameters));
+            path = [path filesep name obj.AdjustmentSuffix ext];
         end
         
         function path = constructKinematicDataPath(...

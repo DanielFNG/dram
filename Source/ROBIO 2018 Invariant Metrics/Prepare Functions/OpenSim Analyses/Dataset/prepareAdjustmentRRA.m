@@ -25,6 +25,7 @@ output_dir = [grf_path '\RRA_Results'];
 % Copy adjusted model file in to appropriate location.
 [~, model_name, ~] = fileparts(model_path);
 [~, new_model_name, ext] = fileparts(path);
-copyfile(path, [root filesep 'S' num2str(subject) filesep 'Scaling' filesep model_name '_' new_model_name ext]);
+copyfile(path, [root filesep 'S' num2str(subject) filesep 'Scaling' ...
+    filesep model_name '_' new_model_name ext]);
 
 end

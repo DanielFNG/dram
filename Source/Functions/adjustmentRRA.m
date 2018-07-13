@@ -1,4 +1,5 @@
-function [RRA_adjustment, path] = adjustmentRRA(model,ik,grf,results,load)
+function [RRA_adjustment, path] = ...
+    adjustmentRRA(model, ik_folder, grf_folder, results, load)
 % Function for using RRA to adjust a model. 
 %   Uses input kinematic and GRF data to perform RRA and calculate a
 %   modified model file. 
@@ -29,9 +30,15 @@ if ~exist(results, 'dir')
     mkdir(results);
 end
 
+% Obtain the files in the ik and grf folders.
+grf_files = dir([grf_folder filesep '*.mot']);
+first_grf = [grf_folder '\' grf_files(1).name];
+ik_files = dir([ik_folder '\*.mot']);
+first_ik = [ik_files '\' ik_files(1).name];
+
 % Construct the OST for model adjustment.
 save_dir = [results '/' 'adjustment'];
-trial = OpenSimTrial(model,ik,load,grf,save_dir);
+trial = OpenSimTrial(model, first_ik, load, first_grf, save_dir);
 
 % Run RRA with adjustment on this trial.
 [RRA_adjustment, path] = trial.runRRA('torso','model_adjusted');
