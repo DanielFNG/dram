@@ -1,12 +1,28 @@
 classdef Dataset < handle
-   
+    % Dataset An organised set of dynamic motion data. 
+    %   A Dataset is a set of dynamic motion data for processing with
+    %   musculoskeletal modelling software OpenSim. Data is in the form of
+    %   marker trajectories and force data and subject specific
+    %   musculoskeletal models. The data is organised by subject and
+    %   according to a set of context parameters. Context parameters affect
+    %   the context in which data was recorded - examples could be speed
+    %   (of gait), assistance level (of robotic assistance), control scheme
+    %   (again of robotic assistance), etc. A Dataset must be constructed
+    %   according to information provided in a DatasetDescriptor.xml file.
+    %   See PDF documentation for more details. 
+    %
+    %   This class contains methods for working with a Dataset, e.g. parsing
+    %   a DatasetDescriptor and allowing easy access to various dataset paths
+    %   which are used when performing dynamic analyses. This class also
+    %   contains the process method, which breaks the Dataset in to
+    %   constituent DatasetElements, then performs a set of motion analyses
+    %   which are provided by the user. These analyses are OpenSim functions
+    %   such as IK (inverse kinematics) and ID (inverse dynamics). 
+    
     properties (SetAccess = private)
         DatasetName
         ContextParameters
         ModelParameter
-        SubsetName
-        DesiredSubjects
-        DesiredParameterValues
     end
     
     properties (SetAccess = private, Hidden = true)
@@ -27,7 +43,7 @@ classdef Dataset < handle
         AdjustmentSuffix
         ModelMap
         LoadMap
-        SubsetRoot
+        DatasetRoot
     end
     
     methods
@@ -36,13 +52,10 @@ classdef Dataset < handle
         % provided as a set of name-value pairs i.e. the name of a
         % parameter followed by a vector of values which that parameter
         % should take within this dataset. 
-        function obj = Dataset(name, root, subjects, varargin)
+        function obj = Dataset(root)
             if nargin > 0
-                obj.SubsetName = name;
-                obj.SubsetRoot = root;
+                obj.DatasetRoot = root;
                 obj.parseDatasetDescriptor();
-                obj.DesiredSubjects = subjects;
-                obj.parseParameterList(varargin);
                 obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
                     obj.ModelParameter));
             end
@@ -51,7 +64,7 @@ classdef Dataset < handle
         function parseDatasetDescriptor(obj)
 
             % Parse the DatasetDescriptor file.
-            xml_data = xmlread([obj.SubsetRoot filesep ...
+            xml_data = xmlread([obj.DatasetRoot filesep ...
                 'DatasetDescriptor.xml']);
 
             % Get the dataset name.
@@ -73,7 +86,7 @@ classdef Dataset < handle
             % Get the context parameter data.
             parameters = xml_data.getElementsByTagName('Parameter');
             obj.NContextParameters = parameters.getLength();
-            parameter_names = cell(obj.NContextParameters, 1);
+            parameter_names = cell(1, obj.NContextParameters);
             for i=0:obj.NContextParameters - 1
                 parameter_names{i + 1} = ...
                     strtrim(char(parameters.item(i). ...
@@ -128,25 +141,6 @@ classdef Dataset < handle
                 'ID').item(0).item(0).getData()));
             obj.CMCDirectory = strtrim(char(xml_data.getElementsByTagName(...
                 'CMC').item(0).item(0).getData()));
-        end
-        
-        function parseParameterList(obj, param_list)
-            if length(param_list) == 2 * obj.NContextParameters
-                parsed_param_list = cell(obj.NContextParameters, 1);
-                for i=1:2:2 * obj.NContextParameters - 1
-                    if ~strcmp(obj.ContextParameters, param_list{i})
-                        error('Context parameter name not recognised.');
-                    else
-                        parsed_param_list{strcmp(obj.ContextParameters, ...
-                            param_list{i})} = param_list{i + 1};
-                    end
-                end
-            else
-                error(['The number of parameter values given ' ...
-                    'does not match the number of ' ...
-                    'context parameters in this Dataset.']);
-            end
-            obj.DesiredParameterValues = parsed_param_list;
         end
         
         function path = getSubjectFolderPath(obj, element)
