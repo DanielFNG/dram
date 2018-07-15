@@ -35,8 +35,9 @@
                 <ParameterValues> 2 3 </ParameterValues>
             </Model>
         </ModelSet>
-		<OpenSimDirectories>
+		<OpenSimSaveDirectories>
 			<IK> IK_Results </IK>
+			<AdjRRA> RRA_Adjustment </AdjRRA>
 			<RRA> RRA_Results </RRA>
 			<ID> ID_Results </ID>
 			<BodyKinematics> BodyKinematics_Results </BodyKinematics>

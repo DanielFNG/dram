@@ -7,6 +7,12 @@ classdef Dataset < handle
         SubsetName
         DesiredSubjects
         DesiredParameters
+        IKDirectory
+        AdjustmentRRADirectory
+        RRADirectory
+        IDDirectory
+        BodyKinematicsDirectory
+        CMCDirectory
     end
     
     properties % (GetAccess = private, SetAccess = private)
@@ -16,7 +22,6 @@ classdef Dataset < handle
         NContextParameters
         ModelParameterIndex
         AdjustmentSuffix
-        NModels
         ModelMap
         LoadMap
         SubsetRoot
@@ -34,8 +39,7 @@ classdef Dataset < handle
                 obj.SubsetRoot = root;
                 obj.parseDatasetDescriptor();
                 obj.DesiredSubjects = subjects;
-                obj.DesiredParameters = containers.Map(...
-                    obj.ContextParameters, obj.parseParameterList(varargin));
+                obj.parseParameterList(varargin));
                 obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
                     obj.ModelParameter));
             end
@@ -83,12 +87,12 @@ classdef Dataset < handle
     
             % Get the model set data.
             model_set = xml_data.getElementsByTagName('Model');
-            obj.NModels = model_set.getLength();
-            model_names = cell(obj.NModels, 1);
-            model_loads = cell(obj.NModels, 1);
-            model_indices = cell(obj.NModels, 1);
+            n_models = model_set.getLength();
+            model_names = cell(n_models, 1);
+            model_loads = cell(n_models, 1);
+            model_indices = cell(n_models, 1);
             k = 1;
-            for i=0:obj.NModels - 1
+            for i=0:n_models - 1
                 model_names{i + 1} = strtrim(char(model_set.item(i). ...
                     getElementsByTagName('Name').item(0).item(0).getData()));
                 model_loads{i + 1} = strtrim(char(model_set.item(i). ...
@@ -105,9 +109,24 @@ classdef Dataset < handle
             end
             obj.ModelMap = containers.Map(map_key, map_value);
             obj.LoadMap = containers.Map(map_key, load_map_value);
+            
+            % Get the results directory names. 
+            obj.IKDirectory = strtrim(char(xml_data.getElementsByTagName(...
+                'IK').item(0).item(0).getData()));
+            obj.AdjustmentRRADirectory = strtrim(char(...
+                xml_data.getElementsByTagName('AdjRRA').item(0).item(0). ...
+                getData()));
+            obj.RRADirectory = strtrim(char(xml_data.getElementsByTagName(...
+                'RRA').item(0).item(0).getData()));
+            obj.BodyKinematicsDirectory = strtrim(char(xml_data. ...
+                getElementsByTagName('BK').item(0).item(0).getData()));
+            obj.IDDirectory = strtrim(char(xml_data.getElementsByTagName(...
+                'ID').item(0).item(0).getData()));
+            obj.CMCDirectory = strtrim(char(xml_data.getElementsByTagName(...
+                'CMC').item(0).item(0).getData()));
         end
         
-        function parsed_param_list = parseParameterList(obj, param_list)
+        function parseParameterList(obj, param_list)
             if length(param_list) == 2 * obj.NContextParameters
                 parsed_param_list = cell(obj.NContextParameters, 1);
                 for i=1:2:2 * obj.NContextParameters - 1
@@ -123,74 +142,63 @@ classdef Dataset < handle
                     'does not match the number of ' ...
                     'context parameters in this Dataset.']);
             end
+            obj.DesiredParameters = parsed_param_list;
         end
         
-    end
-    
-    methods %(Access = private)
+        function path = getSubjectFolderPath(obj, element)
         
-        % Construct the path to the raw data files for a certain combination
-        % of context parameters. The input argument should be an ordered
-        % vector of context parameter values.
-        function path = constructRawDataPath(obj, subject, parameters)
-            
-            % Create the parameter string.
-            name = [];
-            for i=1:obj.NContextParameters
-                name = [name obj.ContextParameters{i} ...
-                    num2str(parameters(i)) filesep]; %#ok<*AGROW>
-            end
-            
-            % Create the path to the appropriate data folder.
-            path = [obj.SubsetRoot filesep obj.SubjectPrefix ...
-                num2str(subject) filesep obj.DataFolderName filesep ...
-                name];
+            path = [obj.SubsetRoot filesep obj.SubjectPrefix...
+                num2str(element.Subject)];
+        
         end
         
-        % This serves a similar purpose to constructDataPath, however this
-        % results in an exact path to a model file. This accepts a full
-        % list of parameter values but simply checks the value of the
-        % ModelParameter.
-        function path = constructModelPath(obj, subject, parameters)
-            
-            % Create the path to the appropriate model. 
-            path = [obj.SubsetRoot filesep obj.SubjectPrefix ...
-                num2str(subject) filesep obj.ModelFolderName filesep ...
-                obj.ModelMap(parameters(obj.ModelParameterIndex))];
-            
+        function path = getDataFolderPath(obj, element)
+        
+            path = [obj.getSubjectFolderPath(element.Subject) filesep ...
+                obj.DataFolderName]; 
+        
         end
         
-        function path = constructAdjustedModelPath(obj, subject, parameters)
-            
-            % Create the path to the appropriate model. 
-            [path, name, ext] = ...
-                fileparts(obj.constructModelPath(subject, parameters));
-            path = [path filesep name obj.AdjustmentSuffix ext];
+        function path = getModelFolderPath(obj, element)
+        
+            path = [obj.getSubjectFolderPath(element.Subject) filesep ...
+                obj.ModelFolderName];
+        
         end
         
-        function path = constructKinematicDataPath(...
-                obj, mode, subject, parameters)
-            if strcmp(mode, 'RRA')
-                if obj.ComputedRRA
-                    folder = 'RRA_Results';
-                else
-                    error('RRA has not been computed for this dataset.');
+        function name = getModelName(obj, element)
+            name = obj.ModelMap(...
+                element.ParameterValues(obj.ModelParameterIndex));
+        end
+        
+        function name = getLoadName(obj, element)
+            name = obj.LoadMap(...
+                element.ParameterValues(obj.ModelParameterIndex));
+        end
+        
+        function process(obj, handles)
+        
+            % Note the number of handle functions.
+            n_functions = length(handles);
+        
+            % Create all possible combinations of the context parameters.
+            combinations = combvec(obj.DesiredParameters);
+            
+            % For every subject...
+            for subject = obj.DesiredSubjects
+                % For every combination of context parameters...
+                for parameters = combinations 
+                    % Create a DatasetElement.
+                    element = DatasetElement(obj, subject, parameters);
+                    
+                    % Perform the handle functions in turn.
+                    for i = 1:n_functions
+                        @handles{i}(element);
+                    end
                 end
-            elseif strcmp(mode, 'IK')
-                if obj.ComputedIK
-                    folder = 'IK_Results';
-                else
-                    error('IK has not been computed for this dataset.');
-                end
-            else
-                error('Mode not recognised.');
             end
-            path = ...
-                [obj.constructRawDataPath(subject, parameters) filesep folder];
-        end
         
+        end
     end
-    
-    
     
 end
