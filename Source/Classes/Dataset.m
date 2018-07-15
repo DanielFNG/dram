@@ -6,7 +6,10 @@ classdef Dataset < handle
         ModelParameter
         SubsetName
         DesiredSubjects
-        DesiredParameters
+        DesiredParameterValues
+    end
+    
+    properties (SetAccess = private, Hidden = true)
         IKDirectory
         AdjustmentRRADirectory
         RRADirectory
@@ -15,7 +18,7 @@ classdef Dataset < handle
         CMCDirectory
     end
     
-    properties % (GetAccess = private, SetAccess = private)
+    properties (GetAccess = private, SetAccess = private)
         SubjectPrefix
         DataFolderName
         ModelFolderName
@@ -39,7 +42,7 @@ classdef Dataset < handle
                 obj.SubsetRoot = root;
                 obj.parseDatasetDescriptor();
                 obj.DesiredSubjects = subjects;
-                obj.parseParameterList(varargin));
+                obj.parseParameterList(varargin);
                 obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
                     obj.ModelParameter));
             end
@@ -101,7 +104,7 @@ classdef Dataset < handle
                     model_set.item(i).getElementsByTagName(...
                     'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
                 for j=1:length(model_indices{i+1})
-                    map_key{k} = model_indices{i + 1}(j);
+                    map_key{k} = model_indices{i + 1}(j); %#ok<*AGROW>
                     map_value{k} = model_names{i + 1};
                     load_map_value{k} = model_loads{i + 1};
                     k = k + 1;
@@ -142,7 +145,7 @@ classdef Dataset < handle
                     'does not match the number of ' ...
                     'context parameters in this Dataset.']);
             end
-            obj.DesiredParameters = parsed_param_list;
+            obj.DesiredParameterValues = parsed_param_list;
         end
         
         function path = getSubjectFolderPath(obj, element)
@@ -154,14 +157,14 @@ classdef Dataset < handle
         
         function path = getDataFolderPath(obj, element)
         
-            path = [obj.getSubjectFolderPath(element.Subject) filesep ...
+            path = [obj.getSubjectFolderPath(element) filesep ...
                 obj.DataFolderName]; 
         
         end
         
         function path = getModelFolderPath(obj, element)
         
-            path = [obj.getSubjectFolderPath(element.Subject) filesep ...
+            path = [obj.getSubjectFolderPath(element) filesep ...
                 obj.ModelFolderName];
         
         end
@@ -176,24 +179,30 @@ classdef Dataset < handle
                 element.ParameterValues(obj.ModelParameterIndex));
         end
         
+        function n = getNContextParameters(obj)
+            n = obj.NContextParameters;
+        end
+        
         function process(obj, handles)
         
             % Note the number of handle functions.
             n_functions = length(handles);
         
             % Create all possible combinations of the context parameters.
-            combinations = combvec(obj.DesiredParameters);
+            all_combinations = combvec(obj.DesiredParameterValues{:,1});
+            n_combinations = size(all_combinations, 2);
             
             % For every subject...
             for subject = obj.DesiredSubjects
                 % For every combination of context parameters...
-                for parameters = combinations 
+                parfor combination = 1:n_combinations 
                     % Create a DatasetElement.
-                    element = DatasetElement(obj, subject, parameters);
+                    element = DatasetElement(...
+                        obj, subject, all_combinations(:, combination));
                     
                     % Perform the handle functions in turn.
                     for i = 1:n_functions
-                        @handles{i}(element);
+                        handles{i}(element);
                     end
                 end
             end

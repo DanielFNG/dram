@@ -28,8 +28,8 @@ classdef DatasetElement < handle
             obj.ParentDataset = dataset;
             obj.Subject = subject;
             obj.ParameterValues = parameters;
-            obj.DataFolderPath = dataset.getDataFolderPath(subject);
-            obj.ModelFolderPath = dataset.getModelFolderPath(subject);
+            obj.DataFolderPath = dataset.getDataFolderPath(obj);
+            obj.ModelFolderPath = dataset.getModelFolderPath(obj);
             obj.constructRawDataPath();
             obj.constructModelPath();
         end
@@ -38,7 +38,7 @@ classdef DatasetElement < handle
             
             % Create the parameter string.
             name = [];
-            for i=1:obj.ParentDataset.NContextParameters
+            for i=1:obj.ParentDataset.getNContextParameters()
                 name = [name obj.ParentDataset.ContextParameters{i} ...
                     num2str(obj.ParameterValues(i)) filesep]; %#ok<*AGROW>
             end
@@ -54,7 +54,7 @@ classdef DatasetElement < handle
         function constructModelPath(obj)
             
             % Create the path to the appropriate model. 
-            obj.ModelPath = [obj.ModelFolderName filesep...
+            obj.ModelPath = [obj.ModelFolderPath filesep...
                 obj.ParentDataset.getModelName(obj)];
             
         end
@@ -64,7 +64,7 @@ classdef DatasetElement < handle
             % Create the path to the appropriate model. 
             [path, name, ext] = fileparts(obj.ModelPath);
             obj.AdjustedModelPath = ...
-                [path filesep name obj.AdjustmentSuffix ext];
+                [path filesep name obj.ParentDataset.AdjustmentSuffix ext];
         end
     
         function prepareBatchIK(obj)
@@ -72,7 +72,7 @@ classdef DatasetElement < handle
             output_dir = [obj.RawDataPath filesep ...
                 obj.ParentDataset.IKDirectory];
             runBatchIK(obj.ModelPath, obj.RawDataPath, output_dir);
-            obj.IKDataPath = output_dur;
+            obj.IKDataPath = output_dir;
             obj.IKComputed = true;
         end
         
@@ -124,7 +124,6 @@ classdef DatasetElement < handle
                 obj.RawDataPath, output_dir, ...
                 obj.ParentDataset.getLoadName(obj));
             obj.IDComputed = true;
-            end
         end
         
         function prepareBatchBodyKinematicsAnalysis(obj)
