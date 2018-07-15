@@ -1,5 +1,5 @@
 new_dir = 'C:\Users\danie\Documents\GDT Testing';
-old_dir = 'D:\Dropbox\PhD\Exoskeleton Metrics';
+old_dir = 'F:\Dropbox\PhD\Exoskeleton Metrics';
 
 foot_strings = {'right', 'left'};
 assistance_strings = {'NE', 'ET', 'EA'};
@@ -14,6 +14,8 @@ contexts = 1:10;
 assistances = 1:3;
 
 for subject = subjects
+    copyfile([old_dir filesep 'S' num2str(subject) filesep 'Scaling'], ...
+        [new_dir filesep 'S' num2str(subject) filesep 'Scaling']);
     for foot = feet
         for context = contexts
             for assistance = assistances 

@@ -42,6 +42,6 @@
 			<ID> ID_Results </ID>
 			<BodyKinematics> BodyKinematics_Results </BodyKinematics>
 			<CMC> CMC_Results </CMC>
-		</OpenSimDirectories>
+		</OpenSimSaveDirectories>
     </DatasetDescriptor>
 </ExOptDocument>

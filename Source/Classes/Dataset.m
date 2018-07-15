@@ -122,7 +122,8 @@ classdef Dataset < handle
             obj.RRADirectory = strtrim(char(xml_data.getElementsByTagName(...
                 'RRA').item(0).item(0).getData()));
             obj.BodyKinematicsDirectory = strtrim(char(xml_data. ...
-                getElementsByTagName('BK').item(0).item(0).getData()));
+                getElementsByTagName('BodyKinematics'). ...
+                item(0).item(0).getData()));
             obj.IDDirectory = strtrim(char(xml_data.getElementsByTagName(...
                 'ID').item(0).item(0).getData()));
             obj.CMCDirectory = strtrim(char(xml_data.getElementsByTagName(...
@@ -183,6 +184,12 @@ classdef Dataset < handle
             n = obj.NContextParameters;
         end
         
+        % The function which performs OpenSim processing. Handles should be
+        % a cell array of function handles to the appropriate methods of
+        % DatasetElement e.g. {@prepareBatchIK, @prepareAdjustmentRRA} is a
+        % suitable set of handles. Note that these handles are EXECUTED IN
+        % ORDER. Care must be taken of the input order. Attempting to
+        % execute RRA before IK will result in an error. 
         function process(obj, handles)
         
             % Note the number of handle functions.
@@ -192,21 +199,46 @@ classdef Dataset < handle
             all_combinations = combvec(obj.DesiredParameterValues{:,1});
             n_combinations = size(all_combinations, 2);
             
+            % Print a starting message.
+            fprintf('Beginning data processing.\n');
+            
+            % Create a parallel waitbar.
+            p = 1;
+            queue = parallel.pool.DataQueue;
+            progress = waitbar(0, 'Processing data...');
+            afterEach(queue, @nUpdateWaitbar);
+            
+            function nUpdateWaitbar(~)
+                waitbar(p/n_combinations, progress);
+                p = p + 1;
+            end
+            
             % For every subject...
             for subject = obj.DesiredSubjects
                 % For every combination of context parameters...
-                parfor combination = 1:n_combinations 
-                    % Create a DatasetElement.
-                    element = DatasetElement(...
-                        obj, subject, all_combinations(:, combination));
-                    
-                    % Perform the handle functions in turn.
-                    for i = 1:n_functions
-                        handles{i}(element);
+                try
+                    parfor combination = 1:n_combinations 
+                        % Create a DatasetElement.
+                        element = DatasetElement(obj, subject, ...
+                            all_combinations(:, combination));
+
+                        % Perform the handle functions in turn.
+                        for i = 1:n_functions
+                            handles{i}(element); %#ok<PFBNS>
+                        end
+
+                        % Send data to queue to allow waitbar to update.
+                        send(queue, combination);
                     end
+                catch err
+                    close(progress);
+                    rethrow(err);
                 end
             end
         
+            % Print closing message & close loading bar.
+            fprintf('Data processing complete.\n');
+            close(progress);
         end
     end
     
