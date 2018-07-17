@@ -19,10 +19,16 @@ classdef Dataset < handle
     %   which are provided by the user. These analyses are OpenSim functions
     %   such as IK (inverse kinematics) and ID (inverse dynamics). 
     
+    properties (SetAccess = private, GetAccess = private)
+        DesiredSubjectValues
+        DesiredParameterValues
+    end
+    
     properties (SetAccess = private)
         DatasetName
+        Subjects
         ContextParameters
-        ModelParameter
+        ContextParameterRanges
     end
     
     properties (SetAccess = private, Hidden = true)
@@ -56,8 +62,6 @@ classdef Dataset < handle
             if nargin > 0
                 obj.DatasetRoot = root;
                 obj.parseDatasetDescriptor();
-                obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
-                    obj.ModelParameter));
             end
         end
     
@@ -82,21 +86,36 @@ classdef Dataset < handle
             obj.ModelFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ModelFolderName').item(0).item(0).getData()));
+            
+            % Get the subject vector. 
+            subjects = xml_data.getElementsByTagName('Subjects');
+            obj.Subjects = str2num(strtrim(char(subjects.item(0). ...
+                item(0).getData()))); %#ok<ST2NM>
+            obj.DesiredSubjectValues = obj.Subjects;
 
             % Get the context parameter data.
             parameters = xml_data.getElementsByTagName('Parameter');
             obj.NContextParameters = parameters.getLength();
             parameter_names = cell(1, obj.NContextParameters);
+            parameter_values = cell(1, obj.NContextParameters);
             for i=0:obj.NContextParameters - 1
                 parameter_names{i + 1} = ...
                     strtrim(char(parameters.item(i). ...
                     getElementsByTagName('Name'). ...
                     item(0).item(0).getData()));
+                parameter_values{i + 1} = ...
+                    str2num(strtrim(char(parameters.item(i). ...
+                    getElementsByTagName('Values'). ...
+                    item(0).item(0).getData()))); %#ok<ST2NM>
             end
             obj.ContextParameters = parameter_names;
-            obj.ModelParameter = ...
+            obj.DesiredParameterValues = parameter_values;
+            obj.ContextParameterRanges = parameter_values;
+            model_parameter = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ModelParameter').item(0).item(0).getData()));
+            obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
+                    model_parameter));
             obj.AdjustmentSuffix = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'AdjustmentSuffix').item(0).item(0).getData()));
@@ -208,7 +227,7 @@ classdef Dataset < handle
             end
             
             % For every subject...
-            for subject = obj.DesiredSubjects
+            for subject = obj.DesiredSubjectValues
                 % For every combination of context parameters...
                 try
                     parfor combination = 1:n_combinations 

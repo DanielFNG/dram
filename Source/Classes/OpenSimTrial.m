@@ -74,7 +74,8 @@ classdef OpenSimTrial
             import org.opensim.modeling.RRATool
             
             % Load default RRATool.
-            rraTool = RRATool([obj.default_rra 'settings.xml']);
+            rraTool = ...
+                RRATool([obj.grfs_path filesep 'RRA' filesep 'settings.xml']);
 
             obj.loadModelAndActuators(rraTool);
             obj.setInputsAndOutputs(rraTool, initialTime, finalTime, dir);
@@ -83,9 +84,9 @@ classdef OpenSimTrial
             % Handle logic for whether or not the model should be adjusted.
             switch nargin 
                 case 4
-                    display('No model adjustment.');
+                    fprintf('No model adjustment.\n');
                 case 6
-                    display('Adjusting COM according to specification.');
+                    fprintf('Adjusting COM according to specification.\n');
                     obj.makeAdjustmentsForRRA(rraTool, body, output, dir); 
                 otherwise
                     error('Incorrect number of arguments to setupRRA');
@@ -97,9 +98,11 @@ classdef OpenSimTrial
             % RRA Tool requires specific behaviour. 
             if isa(Tool, 'org.opensim.modeling.RRATool')
                 Tool.setModelFilename(obj.model_path);
-                Tool.loadModel([obj.default_rra 'settings.xml']);
+                Tool.loadModel([obj.grfs_path filesep 'RRA' filesep ...
+                    'settings.xml']);
                 Tool.updateModelForces(...
-                    Tool.getModel(), [obj.default_rra 'settings.xml']);
+                    Tool.getModel(), [obj.grfs_path filesep 'RRA' filesep ...
+                    'settings.xml']);
             elseif isa(Tool, 'org.opensim.modeling.CMCTool')
                 Tool.setModelFilename(obj.model_path);
                 Tool.loadModel([obj.default_cmc 'settings.xml']);
@@ -164,7 +167,7 @@ classdef OpenSimTrial
         end
         
         % Setup external loads from type.
-        function setupExternalLoads(obj, Tool)
+        function temp_file = setupExternalLoads(obj, Tool)
             % Here, type defines what type of ExternalLoads case we have.
             % E.g. 2 forces for human walking, 4 for walking with APO.
             % There should be a unique xml file relating to any
@@ -177,17 +180,18 @@ classdef OpenSimTrial
             external_loads = xmlread(obj.load_path);
             external_loads.getElementsByTagName('datafile').item(0). ...
                 getFirstChild.setNodeValue(obj.grfs_path);
-            xmlwrite('temp.xml', external_loads);
+            temp_file = [obj.grfs_path filesep 'temp.xml'];
+            xmlwrite(temp_file, external_loads);
             
             if isa(Tool, 'org.opensim.modeling.InverseDynamicsTool')
                 % Import Model class since InverseDynamicsTool doesn't have
                 % a getModel method.
                 import org.opensim.modeling.Model
-                Tool.setExternalLoadsFileName(getFullPath('temp.xml'));
+                Tool.setExternalLoadsFileName(getFullPath(temp_file));
             elseif isa(Tool, 'org.opensim.modeling.RRATool') || ...
                     isa(Tool, 'org.opensim.modeling.CMCTool')
-                Tool.createExternalLoads('temp.xml', Tool.getModel());
-                delete('temp.xml');
+                Tool.createExternalLoads(temp_file, Tool.getModel());
+                delete(temp_file);
             else
                 error('Incorrect number of arguments to setupExternalLoads.');
             end
@@ -198,7 +202,8 @@ classdef OpenSimTrial
         function modifyPelvisCOM(obj)
             % Import OpenSim libraries & get default actuators file path.
             import org.opensim.modeling.*
-            actuators_path = [obj.default_rra 'gait2392_RRA_Actuators.xml'];
+            actuators_path = [obj.grfs_path filesep 'RRA' filesep ...
+                'gait2392_RRA_Actuators.xml'];
             
             % Store the pelvis COM from the model file. 
             model = Model(obj.model_path);
@@ -238,6 +243,9 @@ classdef OpenSimTrial
             %     with adjustment, full file
             % 4 - with adjustment, from given time to end of file
             % 5 - width adjustment, between given times.
+            
+            % Copy the RRA defaults folder over to the data directory.
+            copyfile(obj.default_rra, obj.grfs_path);
             
             % Adjust the pelvis COM in the default RRA actuators file to
             % match the current model.
@@ -301,11 +309,14 @@ classdef OpenSimTrial
             else
                 error('Incorrect number of arguments to runRRA');
             end
+            
+            % Delete the copy of the RRA defaults folder. 
+            rmdir([obj.grfs_path filesep 'RRA'], 's');
         end
         
         % Setup ID from the default settings file, with input initial and
         % final times, according to the OpenSimTrial properties. 
-        function idTool = setupID(obj, dir, startTime, endTime)
+        function [idTool, temp] = setupID(obj, dir, startTime, endTime)
             % Import OpenSim InverseDynamicsTool class.
             import org.opensim.modeling.InverseDynamicsTool
             
@@ -314,7 +325,7 @@ classdef OpenSimTrial
             
             obj.loadModelAndActuators(idTool);
             obj.setInputsAndOutputs(idTool, startTime, endTime, dir);
-            obj.setupExternalLoads(idTool);
+            temp = obj.setupExternalLoads(idTool);
         end
         
         function cmc = setupCMC(obj, dir, startTime, endTime)
@@ -381,7 +392,7 @@ classdef OpenSimTrial
             dir = ['ID_' 'load=' obj.load ...
                 '_time=' num2str(startTime) '-' num2str(endTime)];
             
-            idTool = obj.setupID(dir,startTime,endTime);
+            [idTool, temp] = obj.setupID(dir,startTime,endTime);
             
             idTool.run();
             
@@ -391,7 +402,7 @@ classdef OpenSimTrial
             % reading from a settings file. So, we have to let the external 
             % forces setup file survive until we run the tool and then delete 
             % it afterwards. 
-            delete('temp.xml');
+            delete(temp);
             
             % If required, create an IDResult object to store ID result. 
             if nargout == 1

@@ -9,7 +9,7 @@
 	<!--List of xml files used to construct an force set for the model.-->
 	<force_set_files> gait2392_RRA_Actuators.xml </force_set_files>
 	<!--Directory used for writing results.-->
-	<!--<results_directory> ResultsRRA/ </results_directory>--!>
+	<!--<results_directory> ResultsRRA/ </results_directory>-->
 		<!--Output precision.  It is 20 by default.-->
 	<output_precision> 20 </output_precision>
 	<!--Initial time for the simulation.-->
@@ -31,7 +31,7 @@
 		<integrator_error_tolerance>       0.00001000 </integrator_error_tolerance>
 		<!--XML file (.xml) containing the external loads applied to the model as
 		    a set of PrescribedForce(s).-->
-		<!--<external_loads_file> grf.xml </external_loads_file>--!>
+		<!--<external_loads_file> grf.xml </external_loads_file>-->
 	<!--Motion (.mot) or storage (.sto) file containing the desired kinematic
 	    trajectories.-->
 	<desired_kinematics_file> ik.mot </desired_kinematics_file>
