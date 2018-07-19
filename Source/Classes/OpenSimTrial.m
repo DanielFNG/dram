@@ -73,9 +73,12 @@ classdef OpenSimTrial
             % Import OpenSim RRATool class. 
             import org.opensim.modeling.RRATool
             
+            % Get settings folder.
+            [folder, ~, ~] = fileparts(obj.grfs_path);
+            
             % Load default RRATool.
             rraTool = ...
-                RRATool([obj.grfs_path filesep 'RRA' filesep 'settings.xml']);
+                RRATool([folder filesep 'RRA' filesep 'settings.xml']);
 
             obj.loadModelAndActuators(rraTool);
             obj.setInputsAndOutputs(rraTool, initialTime, finalTime, dir);
@@ -95,13 +98,16 @@ classdef OpenSimTrial
         
         % Set model, load it and apply the default gait2392_actuators file. 
         function loadModelAndActuators(obj, Tool)
+            % Get settings folder for RRA.
+            [folder, ~, ~] = fileparts(obj.grfs_path);
+            
             % RRA Tool requires specific behaviour. 
             if isa(Tool, 'org.opensim.modeling.RRATool')
                 Tool.setModelFilename(obj.model_path);
-                Tool.loadModel([obj.grfs_path filesep 'RRA' filesep ...
+                Tool.loadModel([folder filesep 'RRA' filesep ...
                     'settings.xml']);
                 Tool.updateModelForces(...
-                    Tool.getModel(), [obj.grfs_path filesep 'RRA' filesep ...
+                    Tool.getModel(), [folder filesep 'RRA' filesep ...
                     'settings.xml']);
             elseif isa(Tool, 'org.opensim.modeling.CMCTool')
                 Tool.setModelFilename(obj.model_path);
@@ -148,7 +154,7 @@ classdef OpenSimTrial
         function performMassAdjustments(obj, model, log)
             % Load the model. 
             import org.opensim.modeling.Model;
-            osim = Model(getFullPath([model '.osim']));
+            osim = Model([model '.osim']);
             
             % Find the total mass change.
             mass = obj.getTotalMassChange(log);
@@ -180,7 +186,8 @@ classdef OpenSimTrial
             external_loads = xmlread(obj.load_path);
             external_loads.getElementsByTagName('datafile').item(0). ...
                 getFirstChild.setNodeValue(obj.grfs_path);
-            temp_file = [obj.grfs_path filesep 'temp.xml'];
+            [folder, ~, ~] = fileparts(obj.grfs_path);
+            temp_file = [folder filesep 'temp.xml'];
             xmlwrite(temp_file, external_loads);
             
             if isa(Tool, 'org.opensim.modeling.InverseDynamicsTool')
@@ -200,9 +207,14 @@ classdef OpenSimTrial
         % Modify the pelvis COM in the default RRA_actuators file in order
         % to match the pelvis COM of the input model. 
         function modifyPelvisCOM(obj)
-            % Import OpenSim libraries & get default actuators file path.
+            % Import OpenSim libraries.
             import org.opensim.modeling.*
-            actuators_path = [obj.grfs_path filesep 'RRA' filesep ...
+            
+            % Get settings folder for RRA.
+            [folder, ~, ~] = fileparts(obj.grfs_path);
+            
+            % Get actuators file path. 
+            actuators_path = [folder filesep 'RRA' filesep ...
                 'gait2392_RRA_Actuators.xml'];
             
             % Store the pelvis COM from the model file. 
@@ -245,7 +257,8 @@ classdef OpenSimTrial
             % 5 - width adjustment, between given times.
             
             % Copy the RRA defaults folder over to the data directory.
-            copyfile(obj.default_rra, obj.grfs_path);
+            [folder, ~, ~] = fileparts(obj.grfs_path);
+            copyfile(obj.default_rra, [folder filesep 'RRA']);
             
             % Adjust the pelvis COM in the default RRA actuators file to
             % match the current model.
@@ -295,7 +308,7 @@ classdef OpenSimTrial
                     '_withAdjustment'];
                 rraTool = obj.setupRRA(...
                     dir, initialTime, finalTime, body, output);
-                rraTool.run()
+                rraTool.run();
                     
                 % Perform mass adjustment. 
                 obj.performMassAdjustments([obj.results_directory '/' dir '/' output], getenv('EXOPT_OUT'));
@@ -311,7 +324,7 @@ classdef OpenSimTrial
             end
             
             % Delete the copy of the RRA defaults folder. 
-            rmdir([obj.grfs_path filesep 'RRA'], 's');
+            rmdir([folder filesep 'RRA'], 's');
         end
         
         % Setup ID from the default settings file, with input initial and

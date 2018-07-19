@@ -32,9 +32,9 @@ end
 
 % Obtain the files in the ik and grf folders.
 grf_files = dir([grf_folder filesep '*.mot']);
-first_grf = [grf_folder '\' grf_files(1).name];
+first_grf = [grf_folder filesep grf_files(1).name];
 ik_files = dir([ik_folder '\*.mot']);
-first_ik = [ik_files '\' ik_files(1).name];
+first_ik = [ik_folder filesep ik_files(1).name];
 
 % Construct the OST for model adjustment.
 save_dir = [results '/' 'adjustment'];

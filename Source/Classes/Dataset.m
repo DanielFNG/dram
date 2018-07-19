@@ -38,6 +38,7 @@ classdef Dataset < handle
         IDDirectory
         BodyKinematicsDirectory
         CMCDirectory
+        AdjustmentSuffix
     end
     
     properties (GetAccess = private, SetAccess = private)
@@ -46,7 +47,6 @@ classdef Dataset < handle
         ModelFolderName
         NContextParameters
         ModelParameterIndex
-        AdjustmentSuffix
         ModelMap
         LoadMap
         DatasetRoot
@@ -164,7 +164,7 @@ classdef Dataset < handle
         
         function path = getSubjectFolderPath(obj, element)
         
-            path = [obj.SubsetRoot filesep obj.SubjectPrefix...
+            path = [obj.DatasetRoot filesep obj.SubjectPrefix...
                 num2str(element.Subject)];
         
         end
@@ -197,6 +197,14 @@ classdef Dataset < handle
             n = obj.NContextParameters;
         end
         
+        function params = getDesiredParameterValues(obj)
+            params = obj.DesiredParameterValues;
+        end
+        
+        function subjects = getDesiredSubjectValues(obj)
+            subjects = obj.DesiredSubjectValues;
+        end
+        
         % The function which performs OpenSim processing. Handles should be
         % a cell array of function handles to the appropriate methods of
         % DatasetElement e.g. {@prepareBatchIK, @prepareAdjustmentRRA} is a
@@ -209,7 +217,8 @@ classdef Dataset < handle
             n_functions = length(handles);
         
             % Create all possible combinations of the context parameters.
-            all_combinations = combvec(obj.DesiredParameterValues{:,1});
+            params = obj.getDesiredParameterValues();
+            all_combinations = combvec(params{1,:});
             n_combinations = size(all_combinations, 2);
             
             % Print a starting message.
@@ -230,7 +239,7 @@ classdef Dataset < handle
             for subject = obj.DesiredSubjectValues
                 % For every combination of context parameters...
                 try
-                    parfor combination = 1:n_combinations 
+                    for combination = 1:n_combinations 
                         % Create a DatasetElement.
                         element = DatasetElement(obj, subject, ...
                             all_combinations(:, combination));

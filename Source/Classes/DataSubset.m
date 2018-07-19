@@ -36,6 +36,14 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
             end
             obj.DesiredParameterValues = parsed_param_list;
         end
+        
+        function params = getDesiredParameterValues(obj)
+            params = obj.DesiredParameterValues;
+        end
+        
+        function subjects = getDesiredSubjectValues(obj)
+            subjects = obj.DesiredSubjectValues;
+        end
     end
     
     methods (Access = protected)

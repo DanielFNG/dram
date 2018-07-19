@@ -29,7 +29,7 @@ classdef DatasetElement < handle
         CMCComputed = false 
     end
     
-    properties (SetAccess = private, GetAccess = private)
+    properties (SetAccess = private)
         DataFolderPath
         ModelFolderPath
         ModelPath
@@ -58,12 +58,12 @@ classdef DatasetElement < handle
             % Create the parameter string.
             name = [];
             for i=1:obj.ParentDataset.getNContextParameters()
-                name = [name obj.ParentDataset.ContextParameters{i} ...
-                    num2str(obj.ParameterValues(i)) filesep]; %#ok<*AGROW>
+                name = [name filesep obj.ParentDataset.ContextParameters{i} ...
+                    num2str(obj.ParameterValues(i))]; %#ok<*AGROW>
             end
             
             % Create the path to the appropriate data folder.
-            obj.RawDataPath = [obj.DataFolderPath filesep name];
+            obj.RawDataPath = [obj.DataFolderPath name];
         end
         
         % Create path to the correct model file. 
