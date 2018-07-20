@@ -8,19 +8,21 @@
             <ModelFolderName> Scaling </ModelFolderName>
         </Strings>
         <ContextParameters>
+            <ModelParameter> Assistance </ModelParameter>
 			<Parameter>
 				<Name> Foot </Name>
 				<NValues> 2 </NValues>
+				<AdjustmentValue> 1 </AdjustmentValue>
 			</Parameter>
             <Parameter>
                 <Name> Context </Name>
 				<NValues> 10 </NValues>
+				<AdjustmentValue> 2 </AdjustmentValue>
             </Parameter>
             <Parameter>
                 <Name> Assistance </Name>
 				<NValues> 3 </NValues>
             </Parameter>
-            <ModelParameter> Assistance </ModelParameter>
         </ContextParameters>
         <ModelSet>
             <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
@@ -28,11 +30,13 @@
                 <Name> no_APO.osim </Name>
                 <Load> normal </Load> 
                 <ParameterValues> 1 </ParameterValues>
+                <AdjustmentValue> 1 </AdjustmentValue>
             </Model>
             <Model>
                 <Name> APO.osim </Name>
                 <Load> apo </Load>
                 <ParameterValues> 2 3 </ParameterValues>
+                <AdjustmentValue> 2 </AdjustmentValue> 
             </Model>
         </ModelSet>
 		<OpenSimSaveDirectories>

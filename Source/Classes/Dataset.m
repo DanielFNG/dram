@@ -29,6 +29,7 @@ classdef Dataset < handle
         Subjects
         ContextParameters
         ContextParameterRanges
+        ModelAdjustmentCompleted = false 
     end
     
     properties (SetAccess = private, Hidden = true)
@@ -203,6 +204,10 @@ classdef Dataset < handle
         
         function subjects = getDesiredSubjectValues(obj)
             subjects = obj.DesiredSubjectValues;
+        end
+        
+        function performModelAdjustment(obj)
+            
         end
         
         % The function which performs OpenSim processing. Handles should be
