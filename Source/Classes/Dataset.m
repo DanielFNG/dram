@@ -215,17 +215,31 @@ classdef Dataset < handle
         % DatasetElement e.g. {@prepareBatchIK, @prepareAdjustmentRRA} is a
         % suitable set of handles. Note that these handles are EXECUTED IN
         % ORDER. Care must be taken of the input order. Attempting to
-        % execute RRA before IK will result in an error. 
-        function process(obj, handles)
+        % execute RRA before IK will result in an error. The user should
+        % not manually pass the combinations or subjects parameters. These
+        % are provided by the resumeProcessing function in the case of
+        % resuming from a failed run. 
+        function process(obj, handles, combinations, subjects)
         
             % Note the number of handle functions.
             n_functions = length(handles);
         
-            % Create all possible combinations of the context parameters.
-            params = obj.getDesiredParameterValues();
-            all_combinations = combvec(params{1,:});
-            n_combinations = size(all_combinations, 2);
-            total = n_combinations * obj.getDesiredSubjectValues();
+            if nargin == 2
+                % Create all possible combinations of the context parameters.
+                params = obj.getDesiredParameterValues();
+                remaining_combinations = combvec(params{1,:});
+                remaining_subjects = obj.getDesiredSubjectValues();
+            elseif nargin == 4
+                % Continue from previous state.
+                remaining_combinations = combinations;
+                remaining_subjects = subjects;
+            else
+                error('Incorrect input arguments to process.');
+            end
+            
+            n_combinations = size(remaining_combinations, 2);
+            total = n_combinations * length(remaining_subjects);
+            computed_elements = 0;
             
             % Print a starting message.
             fprintf('Beginning data processing.\n');
@@ -235,38 +249,62 @@ classdef Dataset < handle
             queue = parallel.pool.DataQueue;
             progress = waitbar(0, 'Processing data...');
             afterEach(queue, @nUpdateWaitbar);
+            afterEach(queue, @updateCombinations);
             
             function nUpdateWaitbar(~)
                 waitbar(p/total, progress);
                 p = p + 1;
             end
             
+            function updateCombinations(n)
+                remaining_combinations(:, n) = 0;
+                computed_elements = computed_elements + 1;
+            end
+            
             % For every subject...
-            for subject = obj.getDesiredSubjectValues()
+            for subject = remaining_subjects
                 % For every combination of context parameters...
                 try
                     parfor combination = 1:n_combinations 
                         % Create a DatasetElement.
                         element = DatasetElement(obj, subject, ...
-                            all_combinations(:, combination));
+                            remaining_combinations(:, combination));
 
                         % Perform the handle functions in turn.
                         for i = 1:n_functions
                             handles{i}(element); %#ok<PFBNS>
                         end
 
-                        % Send data to queue to allow waitbar to update.
+                        % Send data to queue to allow waitbar to update as well
+                        % as the remaining combinations.
                         send(queue, combination);
                     end
                 catch err
                     close(progress);
+                    nrows = size(remaining_combinations, 1);
+                    ncols = size(remaining_combinations, 2);
+                    remaining_combinations(remaining_combinations == 0) = [];
+                    remaining_combinations = reshape(remaining_combinations, ...
+                        [nrows, ncols - computed_elements]);
+                    save([obj.DatasetRoot filesep ...
+                        datestr(now, 30) '.mat'], 'obj', 'handles', ...
+                        'remaining_combinations', 'remaining_subjects');
                     rethrow(err);
                 end
+                remaining_subjects(find(remaining_subjects, subject)) = [];
             end
         
             % Print closing message & close loading bar.
             fprintf('Data processing complete.\n');
             close(progress);
+        end
+    end
+    
+    methods (Static)
+        function resumeProcessing(filename)
+            load(filename, 'obj', 'handles', ...
+                'remaining_combinations', 'remaining_subjects');
+            obj.process(handles, remaining_combinations, remaining_subjects);
         end
     end
     
