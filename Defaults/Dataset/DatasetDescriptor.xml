@@ -7,21 +7,22 @@
             <DataFolderName> Data </DataFolderName>
             <ModelFolderName> Scaling </ModelFolderName>
         </Strings>
+        <Subjects> 1 2 3 4 6 7 8 </Subjects>
         <ContextParameters>
             <ModelParameter> Assistance </ModelParameter>
 			<Parameter>
 				<Name> Foot </Name>
-				<NValues> 2 </NValues>
+				<Values> 1 2 </Values>
 				<AdjustmentValue> 1 </AdjustmentValue>
 			</Parameter>
             <Parameter>
                 <Name> Context </Name>
-				<NValues> 10 </NValues>
+				<Values> 2 4 6 8 10 </Values>
 				<AdjustmentValue> 2 </AdjustmentValue>
             </Parameter>
             <Parameter>
                 <Name> Assistance </Name>
-				<NValues> 3 </NValues>
+				<Values> 1 2 3 </Values>
             </Parameter>
         </ContextParameters>
         <ModelSet>

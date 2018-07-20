@@ -19,11 +19,6 @@ classdef Dataset < handle
     %   which are provided by the user. These analyses are OpenSim functions
     %   such as IK (inverse kinematics) and ID (inverse dynamics). 
     
-    properties (SetAccess = private, GetAccess = private)
-        DesiredSubjectValues
-        DesiredParameterValues
-    end
-    
     properties (SetAccess = private)
         DatasetName
         Subjects
@@ -40,6 +35,10 @@ classdef Dataset < handle
         BodyKinematicsDirectory
         CMCDirectory
         AdjustmentSuffix
+        ModelAdjustmentValues
+        AllowedProcessingFunctions = {'prepareBatchIK', 'prepareBatchRRA', ...
+                'prepareBatchID', 'prepareBatchBodyKinematicsAnalysis', ...
+                'prepareBatchCMC'};
     end
     
     properties (GetAccess = private, SetAccess = private)
@@ -51,6 +50,10 @@ classdef Dataset < handle
         ModelMap
         LoadMap
         DatasetRoot
+        
+        AdjustmentParameterValues
+        DesiredSubjectValues
+        DesiredParameterValues
     end
     
     methods
@@ -97,8 +100,12 @@ classdef Dataset < handle
             % Get the context parameter data.
             parameters = xml_data.getElementsByTagName('Parameter');
             obj.NContextParameters = parameters.getLength();
+            model_parameter = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'ModelParameter').item(0).item(0).getData()));
             parameter_names = cell(1, obj.NContextParameters);
             parameter_values = cell(1, obj.NContextParameters);
+            adjustment_values = zeros(1, obj.NContextParameters);
             for i=0:obj.NContextParameters - 1
                 parameter_names{i + 1} = ...
                     strtrim(char(parameters.item(i). ...
@@ -108,13 +115,19 @@ classdef Dataset < handle
                     str2num(strtrim(char(parameters.item(i). ...
                     getElementsByTagName('Values'). ...
                     item(0).item(0).getData()))); %#ok<ST2NM>
+                if strcmp(parameter_names{i + 1}, model_parameter)
+                    adjustment_values(i+1) = 0;
+                else
+                    adjustment_values(i+1) = ...
+                        str2double(strtrim(char(parameters.item(i). ...
+                        getElementsByTagName('AdjustmentValue'). ...
+                        item(0).item(0).getData())));
+                end
             end
             obj.ContextParameters = parameter_names;
             obj.DesiredParameterValues = parameter_values;
             obj.ContextParameterRanges = parameter_values;
-            model_parameter = ...
-                strtrim(char(xml_data.getElementsByTagName(...
-                'ModelParameter').item(0).item(0).getData()));
+            obj.AdjustmentParameterValues = adjustment_values;
             obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
                     model_parameter));
             obj.AdjustmentSuffix = ...
@@ -127,6 +140,7 @@ classdef Dataset < handle
             model_names = cell(n_models, 1);
             model_loads = cell(n_models, 1);
             model_indices = cell(n_models, 1);
+            model_adjustment_values = zeros(n_models, 1);
             k = 1;
             for i=0:n_models - 1
                 model_names{i + 1} = strtrim(char(model_set.item(i). ...
@@ -136,6 +150,9 @@ classdef Dataset < handle
                 model_indices{i + 1} = str2num(strtrim(char(...
                     model_set.item(i).getElementsByTagName(...
                     'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
+                model_adjustment_values(i+1) = str2double(strtrim(char(...
+                    model_set.item(i).getElementsByTagName(...
+                    'AdjustmentValue').item(0).item(0).getData())));
                 for j=1:length(model_indices{i+1})
                     map_key{k} = model_indices{i + 1}(j); %#ok<*AGROW>
                     map_value{k} = model_names{i + 1};
@@ -143,6 +160,7 @@ classdef Dataset < handle
                     k = k + 1;
                 end
             end
+            obj.ModelAdjustmentValues = model_adjustment_values;
             obj.ModelMap = containers.Map(map_key, map_value);
             obj.LoadMap = containers.Map(map_key, load_map_value);
             
@@ -206,8 +224,32 @@ classdef Dataset < handle
             subjects = obj.DesiredSubjectValues;
         end
         
+        function adj_mod_values = getModelAdjustmentValues(obj)
+            adj_mod_values = obj.ModelAdjustmentValues;
+        end
+        
+        function index = getModelParameterIndex(obj)
+            index = obj.ModelParameterIndex;
+        end
+        
         function performModelAdjustment(obj)
+            % Check if this is needed.
+            if obj.ModelAdjustmentCompleted
+                error('Model adjustment already performed.');
+            end
             
+            adj_mod_values = obj.getModelAdjustmentValues();
+            adj_values = obj.AdjustmentParameterValues;
+            model_index = adj_values == 0;
+            for subject = obj.getDesiredSubjectValues()
+                for model = 1:length(adj_mod_values)
+                    adj_values(model_index) = adj_mod_values(model);
+                    element = DatasetElement(obj, subject, adj_values);
+                    element.prepareBatchIK();
+                    element.prepareAdjustmentRRA();
+                end
+            end
+            obj.ModelAdjustmentCompleted = true;
         end
         
         % The function which performs OpenSim processing. Handles should be
@@ -223,6 +265,14 @@ classdef Dataset < handle
         
             % Note the number of handle functions.
             n_functions = length(handles);
+            
+            % Limit which functions can be used.
+            for i=1:n_functions
+                info = functions(handles{i});
+                if ~any(strcmp(obj.AllowedProcessingFunctions, info.function))
+                    error('Unsupported function handle.');
+                end
+            end
         
             if nargin == 2
                 % Create all possible combinations of the context parameters.

@@ -92,6 +92,11 @@ classdef DatasetElement < handle
         
         % Perform adjustmentRRA on this DatasetElement.
         function prepareAdjustmentRRA(obj)
+            % Check if adjustment is necessary.
+            if obj.ParentDataset.ModelAdjustmentCompleted
+                error('RRA adjustment has already been performed.');
+            end
+            
             % Require IK for RRA to be performed.
             if ~obj.IKComputed
                 error('IK must be performed before doing RRA analyses.');
@@ -115,6 +120,11 @@ classdef DatasetElement < handle
             % Require IK for RRA to be performed.
             if ~obj.IKComputed
                 error('IK must be performed before doing RRA analyses.');
+            end
+            
+            % Require adjustment RRA.
+            if ~obj.ParentDataset.ModelAdjustmentCompleted
+                error('RRA adjustment required for this Dataset.');
             end
             
             output_dir = [obj.RawDataPath filesep ...

@@ -44,6 +44,12 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
         function subjects = getDesiredSubjectValues(obj)
             subjects = obj.DesiredSubjectValues;
         end
+        
+        function adj_mod_values = getModelAdjustmentValues(obj)
+            desired_values = obj.getDesiredParameterValues();
+            model_values = desired_values{obj.getModelParameterIndex()};
+            adj_mod_values = intersect(obj.ModelAdjustmentValues, model_values);
+        end
     end
     
     methods (Access = protected)
