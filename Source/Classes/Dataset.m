@@ -220,6 +220,7 @@ classdef Dataset < handle
             params = obj.getDesiredParameterValues();
             all_combinations = combvec(params{1,:});
             n_combinations = size(all_combinations, 2);
+            total = n_combinations * obj.getDesiredSubjectValues();
             
             % Print a starting message.
             fprintf('Beginning data processing.\n');
@@ -231,15 +232,15 @@ classdef Dataset < handle
             afterEach(queue, @nUpdateWaitbar);
             
             function nUpdateWaitbar(~)
-                waitbar(p/n_combinations, progress);
+                waitbar(p/total, progress);
                 p = p + 1;
             end
             
             % For every subject...
-            for subject = obj.DesiredSubjectValues
+            for subject = obj.getDesiredSubjectValues()
                 % For every combination of context parameters...
                 try
-                    for combination = 1:n_combinations 
+                    parfor combination = 1:n_combinations 
                         % Create a DatasetElement.
                         element = DatasetElement(obj, subject, ...
                             all_combinations(:, combination));
