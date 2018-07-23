@@ -17,6 +17,10 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
             obj.parseParameterList(varargin);
         end
         
+        % Interpet user-provided parameter list. 
+        %   This function parses the name-value pairs of context parameter
+        %   ranges provided by the user, and reformats them in to an ordered
+        %   cell array.  
         function parsed_param_list = parseParameterList(obj, param_list)
             n_params = obj.getNContextParameters();
             if length(param_list) == 2 * n_params
@@ -37,6 +41,8 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
             obj.DesiredParameterValues = parsed_param_list;
         end
         
+        %% These methods replace corresponding methods of the Dataset class.
+        
         function params = getDesiredParameterValues(obj)
             params = obj.DesiredParameterValues;
         end
@@ -45,6 +51,10 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
             subjects = obj.DesiredSubjectValues;
         end
         
+        % Gets the values of the model parameter to be used for RRA adjustment.
+        %   Note the extra logic compared to the dataset class; takes the 
+        %   intersection of the total Dataset model values and the subclass 
+        %   model parameter range.
         function adj_mod_values = getModelAdjustmentValues(obj)
             desired_values = obj.getDesiredParameterValues();
             model_values = desired_values{obj.getModelParameterIndex()};
@@ -52,7 +62,10 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
         end
     end
     
+    %% Special methods. 
     methods (Access = protected)
+    
+        % Re-orders the property list of DataSubset objects.
         function propgrp = getPropertyGroups(~)
             proplist = {'DatasetName', 'SubsetName', 'DesiredSubjectValues', ...
                 'ContextParameters', 'DesiredParameterValues'};

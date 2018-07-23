@@ -232,6 +232,11 @@ classdef Dataset < handle
             index = obj.ModelParameterIndex;
         end
         
+        % Corrects for dynamic inconsistency in the model using RRA. 
+        %   This function performs RRA analyses (and the IK analyses which 
+        %   are required to do this) based on what is specified in the 
+        %   DatasetDescriptor. RRA is performed and then the masses of the 
+        %   model bodies are adjusted based on the RRA results. 
         function performModelAdjustment(obj)
             % Check if this is needed.
             if obj.ModelAdjustmentCompleted
@@ -252,15 +257,17 @@ classdef Dataset < handle
             obj.ModelAdjustmentCompleted = true;
         end
         
-        % The function which performs OpenSim processing. Handles should be
-        % a cell array of function handles to the appropriate methods of
-        % DatasetElement e.g. {@prepareBatchIK, @prepareAdjustmentRRA} is a
-        % suitable set of handles. Note that these handles are EXECUTED IN
-        % ORDER. Care must be taken of the input order. Attempting to
-        % execute RRA before IK will result in an error. The user should
-        % not manually pass the combinations or subjects parameters. These
-        % are provided by the resumeProcessing function in the case of
-        % resuming from a failed run. 
+        % The function which performs OpenSim processing. 
+        %   Handles should be a cell array of function handles to the 
+        %   appropriate methods of DatasetElement e.g. {@prepareBatchIK, 
+        %   @prepareBatchRRA} is a suitable set of handles. Note that these 
+        %   handles are EXECUTED IN ORDER. Care must be taken of the input 
+        %   order. Attempting to execute RRA before IK will result in an error. 
+        %   The user should not manually pass the combinations or subjects 
+        %   parameters. These are provided by the resumeProcessing function in 
+        %   the case of resuming from a failed run. In the event of a failed 
+        %   run, a file is saved to the current directory, which can be used to 
+        %   resume from once the source of the error has been fixed. 
         function process(obj, handles, combinations, subjects)
         
             % Note the number of handle functions.
@@ -351,6 +358,11 @@ classdef Dataset < handle
     end
     
     methods (Static)
+    
+        % Continue data processing from a save file. 
+        %   Takes as input the filename of a save file which was produced 
+        %   by the process method (e.g. for a failed run). Resumes processing
+        %   from the point of failure. 
         function resumeProcessing(filename)
             load(filename, 'obj', 'handles', ...
                 'remaining_combinations', 'remaining_subjects');
