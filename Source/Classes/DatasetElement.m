@@ -194,9 +194,6 @@ classdef DatasetElement < handle
         end
         
         %% Methods for loading processed data to file. 
-        
-        % Load IK data to file.
-        function result = loadIKFromFile(obj) 
     
     end
 

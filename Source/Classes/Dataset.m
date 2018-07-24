@@ -24,8 +24,7 @@ classdef Dataset < handle
         Subjects
         ContextParameters
         ContextParameterRanges
-        ModelAdjustmentCompleted = false 
-        DataProcessingCompleted = false 
+        ModelAdjustmentCompleted = false
     end
     
     properties (SetAccess = private, Hidden = true)
@@ -40,6 +39,8 @@ classdef Dataset < handle
         AllowedProcessingFunctions = {'prepareBatchIK', 'prepareBatchRRA', ...
                 'prepareBatchID', 'prepareBatchBodyKinematicsAnalysis', ...
                 'prepareBatchCMC'};
+        AllowedLoadingFunctions = {'loadGRF', 'loadIK', 'loadRRA', 'loadID', ...
+                'loadBodyKinematics', 'loadCMC'};
     end
     
     properties (GetAccess = private, SetAccess = private)
@@ -58,12 +59,14 @@ classdef Dataset < handle
     end
     
     methods
-        
-        % The varargin entry should represent a desired parameter list,
-        % provided as a set of name-value pairs i.e. the name of a
-        % parameter followed by a vector of values which that parameter
-        % should take within this dataset. 
+         
         function obj = Dataset(root)
+            % Constructor for Dataset objects. 
+            %   The varargin entry should represent a desired parameter list,
+            %   provided as a set of name-value pairs i.e. the name of a
+            %   parameter followed by a vector of values which that parameter
+            %   should take within this dataset.
+        
             if nargin > 0
                 obj.DatasetRoot = root;
                 obj.parseDatasetDescriptor();
@@ -183,24 +186,18 @@ classdef Dataset < handle
         end
         
         function path = getSubjectFolderPath(obj, element)
-        
             path = [obj.DatasetRoot filesep obj.SubjectPrefix...
                 num2str(element.Subject)];
-        
         end
         
         function path = getDataFolderPath(obj, element)
-        
             path = [obj.getSubjectFolderPath(element) filesep ...
                 obj.DataFolderName]; 
-        
         end
         
         function path = getModelFolderPath(obj, element)
-        
             path = [obj.getSubjectFolderPath(element) filesep ...
                 obj.ModelFolderName];
-        
         end
         
         function name = getModelName(obj, element)
@@ -232,13 +229,14 @@ classdef Dataset < handle
         function index = getModelParameterIndex(obj)
             index = obj.ModelParameterIndex;
         end
-        
-        % Corrects for dynamic inconsistency in the model using RRA. 
-        %   This function performs RRA analyses (and the IK analyses which 
-        %   are required to do this) based on what is specified in the 
-        %   DatasetDescriptor. RRA is performed and then the masses of the 
-        %   model bodies are adjusted based on the RRA results. 
+         
         function performModelAdjustment(obj)
+            % Corrects for dynamic inconsistency in the model using RRA.
+            %   This function performs RRA analyses (and the IK analyses which
+            %   are required to do this) based on what is specified in the
+            %   DatasetDescriptor. RRA is performed and then the masses of the
+            %   model bodies are adjusted based on the RRA results.
+        
             % Check if this is needed.
             if obj.ModelAdjustmentCompleted
                 error('Model adjustment already performed.');
@@ -257,47 +255,74 @@ classdef Dataset < handle
             end
             obj.ModelAdjustmentCompleted = true;
         end
+         
+        function process(obj, handles, varargin)
+            % Performs OpenSim processing.
+            %   Handles should be a cell array of function handles to the
+            %   appropriate methods of DatasetElement e.g. {@prepareBatchIK,
+            %   @prepareBatchRRA} is a suitable set of handles. Note that these
+            %   handles are EXECUTED IN ORDER. Care must be taken of the input
+            %   order. Attempting to execute RRA before IK will result in an 
+            %   error. The user should not manually pass the combinations or 
+            %   subjects parameters. These are provided by the resume function 
+            %   in the case of resuming from a failed run.
         
-        % The function which performs OpenSim processing. 
-        %   Handles should be a cell array of function handles to the 
-        %   appropriate methods of DatasetElement e.g. {@prepareBatchIK, 
-        %   @prepareBatchRRA} is a suitable set of handles. Note that these 
-        %   handles are EXECUTED IN ORDER. Care must be taken of the input 
-        %   order. Attempting to execute RRA before IK will result in an error. 
-        %   The user should not manually pass the combinations or subjects 
-        %   parameters. These are provided by the resumeProcessing function in 
-        %   the case of resuming from a failed run. In the event of a failed 
-        %   run, a file is saved to the current directory, which can be used to 
-        %   resume from once the source of the error has been fixed. 
-        function process(obj, handles, combinations, subjects)
+            % Assign name and allowed handles for process function.
+            func = 'process';
+            allowed_handles = obj.AllowedProcessingFunctions;
+            
+            % Perform dataLoop.
+            obj.dataLoop(handles, allowed_handles, func, varargin{:});    
+            
+        end
         
-            % Check.
-            if obj.DataProccessingCompleted
-                error('This Dataset object has already finished processing.');
-            end
+        function load(obj, handles, varargin)
+            % Loads OpenSim data in to Matlab.
+            %   See process function. Very similar but for loading. Order
+            %   does not matter, but the corresponding analysis must be
+            %   processed before it can be loaded (e.g. IK must be performed
+            %   via process before the results can be loaded in to Matlab).
+            
+            % Assign name and allowed handles for load function.
+            func = 'load';
+            allowed_handles = obj.AllowedLoadingFunctions;
+            
+            % Perform dataLoop. 
+            obj.dataLoop(handles, allowed_handles, func, varargin{:});
+            
+        end
+        
+        function dataLoop(obj, user_handles, allowed_handles, func, ...
+                combinations, subjects)
+            % Loops over data to process or load data.
+            %   Loops over DatasetElements performing handle functions and
+            %   providing visual feedback as to process. In the event of a 
+            %   failed run, a file is saved to the current directory, which can 
+            %   be used to resume from once the source of the error has been 
+            %   fixed (see resume function).
         
             % Note the number of handle functions.
-            n_functions = length(handles);
+            n_functions = length(user_handles);
             
             % Limit which functions can be used.
             for i=1:n_functions
-                info = functions(handles{i});
-                if ~any(strcmp(obj.AllowedProcessingFunctions, info.function))
+                info = functions(user_handles{i});
+                if ~any(strcmp(allowed_handles, info.function))
                     error('Unsupported function handle.');
                 end
             end
         
-            if nargin == 2
+            if nargin == 4
                 % Create all possible combinations of the context parameters.
                 params = obj.getDesiredParameterValues();
                 remaining_combinations = combvec(params{1,:});
                 remaining_subjects = obj.getDesiredSubjectValues();
-            elseif nargin == 4
+            elseif nargin == 6
                 % Continue from previous state.
                 remaining_combinations = combinations;
                 remaining_subjects = subjects;
             else
-                error('Incorrect input arguments to process.');
+                error(['Incorrect input arguments to ' func '.']);
             end
             
             n_combinations = size(remaining_combinations, 2);
@@ -305,12 +330,12 @@ classdef Dataset < handle
             computed_elements = 0;
             
             % Print a starting message.
-            fprintf('Beginning data processing.\n');
+            fprintf(['Beginning data ' func 'ing.\n']);
             
             % Create a parallel waitbar.
             p = 1;
             queue = parallel.pool.DataQueue;
-            progress = waitbar(0, 'Processing data...');
+            progress = waitbar(0, [func 'ing data...']);
             afterEach(queue, @nUpdateWaitbar);
             afterEach(queue, @updateCombinations);
             
@@ -335,7 +360,7 @@ classdef Dataset < handle
 
                         % Perform the handle functions in turn.
                         for i = 1:n_functions
-                            handles{i}(element); %#ok<PFBNS>
+                            user_handles{i}(element); %#ok<PFBNS>
                         end
 
                         % Send data to queue to allow waitbar to update as well
@@ -350,7 +375,7 @@ classdef Dataset < handle
                     remaining_combinations = reshape(remaining_combinations, ...
                         [nrows, ncols - computed_elements]);
                     save([obj.DatasetRoot filesep ...
-                        datestr(now, 30) '.mat'], 'obj', 'handles', ...
+                        datestr(now, 30) '.mat'], 'obj', 'handles', 'func', ...
                         'remaining_combinations', 'remaining_subjects');
                     rethrow(err);
                 end
@@ -358,22 +383,28 @@ classdef Dataset < handle
             end
         
             % Print closing message & close loading bar.
-            fprintf('Data processing complete.\n');
+            fprintf(['Data ' func 'ing complete.\n']);
             close(progress);
-            obj.DataProcessingComplete = true; 
         end
     end
     
     methods (Static)
-    
-        % Continue data processing from a save file. 
-        %   Takes as input the filename of a save file which was produced 
-        %   by the process method (e.g. for a failed run). Resumes processing
-        %   from the point of failure. 
-        function resumeProcessing(filename)
-            load(filename, 'obj', 'handles', ...
+     
+        function resume(filename)
+            % Continue data processing from a save file.
+            %   Takes as input the filename of a save file which was produced
+            %   by the dataLoop method (e.g. for a failed run). Resumes 
+            %   processing or loading from the point of failure.
+            
+            load(filename, 'obj', 'handles', 'func', ...
                 'remaining_combinations', 'remaining_subjects');
-            obj.process(handles, remaining_combinations, remaining_subjects);
+            if strcmp(func, 'process')
+                obj.process(...
+                    handles, remaining_combinations, remaining_subjects);
+            elseif strcmp(func, 'load')
+                obj.load(...
+                    handles, remaining_combinations, remaining_subjects);
+            end
         end
     end
     
