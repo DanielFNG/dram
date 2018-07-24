@@ -25,6 +25,7 @@ classdef Dataset < handle
         ContextParameters
         ContextParameterRanges
         ModelAdjustmentCompleted = false 
+        DataProcessingCompleted = false 
     end
     
     properties (SetAccess = private, Hidden = true)
@@ -270,6 +271,11 @@ classdef Dataset < handle
         %   resume from once the source of the error has been fixed. 
         function process(obj, handles, combinations, subjects)
         
+            % Check.
+            if obj.DataProccessingCompleted
+                error('This Dataset object has already finished processing.');
+            end
+        
             % Note the number of handle functions.
             n_functions = length(handles);
             
@@ -354,6 +360,7 @@ classdef Dataset < handle
             % Print closing message & close loading bar.
             fprintf('Data processing complete.\n');
             close(progress);
+            obj.DataProcessingComplete = true; 
         end
     end
     

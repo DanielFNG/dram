@@ -78,6 +78,8 @@ classdef DatasetElement < handle
             obj.AdjustedModelPath = ...
                 [path filesep name obj.ParentDataset.AdjustmentSuffix ext];
         end
+        
+        %% Methods for performing OpenSim analyses. 
     
         % Perform IK on this DatasetElement.
         function prepareBatchIK(obj)
@@ -190,6 +192,11 @@ classdef DatasetElement < handle
             % Update computed status. 
             obj.CMCComputed = true;
         end
+        
+        %% Methods for loading processed data to file. 
+        
+        % Load IK data to file.
+        function result = loadIKFromFile(obj) 
     
     end
 
