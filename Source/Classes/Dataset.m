@@ -293,7 +293,7 @@ classdef Dataset < handle
         end
         
         function dataLoop(obj, user_handles, allowed_handles, func, ...
-                combinations, subjects)
+                combinations)
             % Loops over data to process or load data.
             %   Loops over DatasetElements performing handle functions and
             %   providing visual feedback as to process. In the event of a 
@@ -315,18 +315,15 @@ classdef Dataset < handle
             if nargin == 4
                 % Create all possible combinations of the context parameters.
                 params = obj.getDesiredParameterValues();
-                remaining_combinations = combvec(params{1,:});
-                remaining_subjects = obj.getDesiredSubjectValues();
+                remaining_combinations = combvec(obj.Subjects, params{1,:});
             elseif nargin == 6
                 % Continue from previous state.
                 remaining_combinations = combinations;
-                remaining_subjects = subjects;
             else
                 error(['Incorrect input arguments to ' func '.']);
             end
             
             n_combinations = size(remaining_combinations, 2);
-            total = n_combinations * length(remaining_subjects);
             computed_elements = 0;
             
             % Print a starting message.
@@ -349,37 +346,34 @@ classdef Dataset < handle
                 computed_elements = computed_elements + 1;
             end
             
-            % For every subject...
-            for subject = remaining_subjects
-                % For every combination of context parameters...
-                try
-                    parfor combination = 1:n_combinations 
-                        % Create a DatasetElement.
-                        element = DatasetElement(obj, subject, ...
-                            remaining_combinations(:, combination));
+            % For every combination of subject andcontext parameters...
+            try
+                parfor combination = 1:n_combinations 
+                    % Create a DatasetElement.
+                    element = DatasetElement(obj, ...
+                        remaining_combinations(1, combination), ...
+                        remaining_combinations(2:end:, combination));
 
-                        % Perform the handle functions in turn.
-                        for i = 1:n_functions
-                            user_handles{i}(element); %#ok<PFBNS>
-                        end
-
-                        % Send data to queue to allow waitbar to update as well
-                        % as the remaining combinations.
-                        send(queue, combination);
+                    % Perform the handle functions in turn.
+                    for i = 1:n_functions
+                        user_handles{i}(element); %#ok<PFBNS>
                     end
-                catch err
-                    close(progress);
-                    nrows = size(remaining_combinations, 1);
-                    ncols = size(remaining_combinations, 2);
-                    remaining_combinations(remaining_combinations == 0) = [];
-                    remaining_combinations = reshape(remaining_combinations, ...
-                        [nrows, ncols - computed_elements]);
-                    save([obj.DatasetRoot filesep ...
-                        datestr(now, 30) '.mat'], 'obj', 'handles', 'func', ...
-                        'remaining_combinations', 'remaining_subjects');
-                    rethrow(err);
+
+                    % Send data to queue to allow waitbar to update as well
+                    % as the remaining combinations.
+                    send(queue, combination);
                 end
-                remaining_subjects(find(remaining_subjects, subject)) = [];
+            catch err
+                close(progress);
+                nrows = size(remaining_combinations, 1);
+                ncols = size(remaining_combinations, 2);
+                remaining_combinations(remaining_combinations == 0) = [];
+                remaining_combinations = reshape(remaining_combinations, ...
+                    [nrows, ncols - computed_elements]);
+                save([obj.DatasetRoot filesep ...
+                    datestr(now, 30) '.mat'], 'obj', 'handles', 'func', ...
+                    'remaining_combinations');
+                rethrow(err);
             end
         
             % Print closing message & close loading bar.
@@ -396,14 +390,13 @@ classdef Dataset < handle
             %   by the dataLoop method (e.g. for a failed run). Resumes 
             %   processing or loading from the point of failure.
             
-            load(filename, 'obj', 'handles', 'func', ...
-                'remaining_combinations', 'remaining_subjects');
+            load(filename, 'obj', 'handles', 'func', 'remaining_combinations');
             if strcmp(func, 'process')
                 obj.process(...
-                    handles, remaining_combinations, remaining_subjects);
+                    handles, remaining_combinations);
             elseif strcmp(func, 'load')
                 obj.load(...
-                    handles, remaining_combinations, remaining_subjects);
+                    handles, remaining_combinations);
             end
         end
     end
