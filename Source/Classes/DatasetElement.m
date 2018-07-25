@@ -197,20 +197,6 @@ classdef DatasetElement < handle
         
         %% Methods for loading processed data to file.
         
-        function temp_cell = loadSimple(obj, folder, identifier)
-            % Identify the files.
-            files = dir([folder filesep '*' identifier]);
-            
-            % Create cell array of appropriate size.
-            n_files = length(files);
-            temp{n_files} = {};
-            
-            % Read in appropriate files as data objects.
-            for i=1:n_files
-                temp{i} = Data([folder filesep files(i, 1).name]);
-            end
-        end
-        
         function result = loadGRF(obj)
             % Load files.
             grf = obj.loadSimple(obj.RawDataPath, '.mot');
@@ -229,7 +215,7 @@ classdef DatasetElement < handle
         
         function result = loadInputMarkers(obj)
             % Load files.
-            im = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.trc');
+            im = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.trc']);
             
             % Assign result.
             result.InputMarkers{obj.CellParameterValues{:}} = im;
@@ -237,7 +223,7 @@ classdef DatasetElement < handle
         
         function result = loadOutputMarkers(obj)
             % Load files.
-            om = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.sto');
+            om = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.sto']);
             
             % Assign result.
             result.OutputMarkers{obj.CellParameterValues{:}} = om;
@@ -269,6 +255,24 @@ classdef DatasetElement < handle
             result.ID{obj.CellParameterValues{:}} = id;
         end
     
+    end
+    
+    methods (Static)
+       
+        function temp = loadSimple(folder, identifier)
+            % Identify the files.
+            files = dir([folder filesep '*' identifier]);
+            
+            % Create cell array of appropriate size.
+            n_files = length(files);
+            temp{n_files} = {};
+            
+            % Read in appropriate files as data objects.
+            for i=1:n_files
+                temp{i} = Data([folder filesep files(i, 1).name]);
+            end
+        end
+        
     end
 
 end
