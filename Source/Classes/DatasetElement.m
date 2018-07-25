@@ -29,7 +29,8 @@ classdef DatasetElement < handle
         CMCComputed = false 
     end
     
-    properties (SetAccess = private)
+    properties (GetAccess = private, SetAccess = private)
+        CellParameterValues
         DataFolderPath
         ModelFolderPath
         ModelPath
@@ -47,6 +48,7 @@ classdef DatasetElement < handle
             obj.ParentDataset = dataset;
             obj.Subject = subject;
             obj.ParameterValues = parameters;
+            obj.CellParameterValues = num2cell(parameters);
             obj.DataFolderPath = dataset.getDataFolderPath(obj);
             obj.ModelFolderPath = dataset.getModelFolderPath(obj);
             obj.constructRawDataPath();
@@ -193,7 +195,79 @@ classdef DatasetElement < handle
             obj.CMCComputed = true;
         end
         
-        %% Methods for loading processed data to file. 
+        %% Methods for loading processed data to file.
+        
+        function temp_cell = loadSimple(obj, folder, identifier)
+            % Identify the files.
+            files = dir([folder filesep '*' identifier]);
+            
+            % Create cell array of appropriate size.
+            n_files = length(files);
+            temp{n_files} = {};
+            
+            % Read in appropriate files as data objects.
+            for i=1:n_files
+                temp{i} = Data([folder filesep files(i, 1).name]);
+            end
+        end
+        
+        function result = loadGRF(obj)
+            % Load files.
+            grf = obj.loadSimple(obj.RawDataPath, '.mot');
+            
+            % Assign result.
+            result.GRF{obj.CellParameterValues{:}} = grf;
+        end
+        
+        function result = loadIK(obj)
+            % Load files.
+            ik = obj.loadSimple(obj.IKDataPath, '.mot');
+            
+            % Assign result.
+            result.IK{obj.CellParameterValues{:}} = ik;
+        end
+        
+        function result = loadInputMarkers(obj)
+            % Load files.
+            im = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.trc');
+            
+            % Assign result.
+            result.InputMarkers{obj.CellParameterValues{:}} = im;
+        end
+        
+        function result = loadOutputMarkers(obj)
+            % Load files.
+            om = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.sto');
+            
+            % Assign result.
+            result.OutputMarkers{obj.CellParameterValues{:}} = om;
+        end
+        
+        function result = loadID(obj)
+            % Identify ID folders.
+            id_path = [obj.RawDataPath filesep obj.ParentDataset.IDDirectory];
+            folders = getSubfolders(id_path);
+                
+            % Create a cell array of appropriate size.
+            n_folders = length(folders);
+            id{n_folders} = {};
+            
+            % Read in the ID analyses appropriately. 
+            for i=1:n_folders
+                % Identify current folder.
+                folder = getSubfolders([id_path filesep folders(i, 1).name]);
+                if length(folder) ~= 1
+                    error('Multiple or zero ID folders detected.');
+                end
+                
+                % Load folder. 
+                id{i} = Data([id_path folders(i, 1).name filesep ...
+                    folder(1, 1).name filesep 'id.sto']);
+            end
+            
+            % Assign result.
+            result.ID{obj.CellParameterValues{:}} = id;
+        end
     
     end
 

@@ -11,6 +11,9 @@ function [IK, InputMarkers, OutputMarkers] = runIK(model, input, results, append
 % Import the OpenSim modelling tools.
 import org.opensim.modeling.*
 
+% Change append to 3 digits to avoid ordering issues.
+append = num2str(append, '%03i');
+
 % Initialise an InverseKinematicsTool using a default settings file. 
 tool = InverseKinematicsTool([getenv('EXOPT_HOME') '\Defaults\IK\settings.xml']);
 
@@ -31,25 +34,28 @@ final_time = markerData.Timesteps(end,1);
 
 % Set the input, times and output for the tool.
 output = [results '\ik' append '.mot'];
+mdir = [results filesep 'MarkerData'];
 tool.setMarkerDataFileName(getFullPath(input));
 tool.setStartTime(initial_time);
 tool.setEndTime(final_time);
-tool.setResultsDir([results '\' append 'MarkerData']);
+tool.setResultsDir([results filesep 'MarkerData']);
 tool.setOutputMotionFileName(output);
 
 % Run IK.
 tool.run();
 
 % Copy the input marker data to the results folder.
-copyfile(input, ...
-    [results '\' append 'MarkerData\' 'raw_marker_locations.trc']);
+copyfile(input, [mdir filesep append 'raw_marker_locations.trc']);
+    
+% Rename the output marker data. 
+mv([mdir filesep 'ik_model_marker_locations.sto'], ...
+    [mdir filesep append 'ik_model_marker_locations.sto']);
 
 % Interpret the results as Data objects if required.
 if nargout ~= 0
     IK = Data(output);
-    OutputMarkers = Data([results '\' append 'MarkerData' filesep ...
-        'ik_model_marker_locations.sto']);
-    InputMarkers = Data(input);
+    OutputMarkers = Data([mdir filesep append 'ik_model_marker_locations.sto']);
+    InputMarkers = Data([mdir filesep append 'raw_marker_locations.trc']);
 end
 
 end
