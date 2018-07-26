@@ -229,6 +229,12 @@ classdef DatasetElement < handle
             result.OutputMarkers{obj.CellParameterValues{:}} = om;
         end
         
+        function result = loadBodyPositions(obj)
+            % Load files.
+            pos = obj.loadSimple([obj.RawDataPath filesep ...
+                obj.ParentDataset.BodyKinematicsDirectory], '.    
+        end
+        
         function result = loadID(obj)
             % Identify ID folders.
             id_path = [obj.RawDataPath filesep obj.ParentDataset.IDDirectory];
@@ -259,7 +265,7 @@ classdef DatasetElement < handle
     
     methods (Static)
        
-        function temp = loadSimple(folder, identifier)
+        function temp = loadFilesOneFolder(folder, identifier)
             % Identify the files.
             files = dir([folder filesep '*' identifier]);
             
@@ -272,6 +278,8 @@ classdef DatasetElement < handle
                 temp{i} = Data([folder filesep files(i, 1).name]);
             end
         end
+        
+        function temp = loadFilesMultipleFolders(
         
     end
 
