@@ -352,11 +352,11 @@ classdef Dataset < handle
                     % Create a DatasetElement.
                     element = DatasetElement(obj, ...
                         remaining_combinations(1, combination), ...
-                        remaining_combinations(2:end:, combination));
+                        remaining_combinations(2:end, combination));
 
                     % Perform the handle functions in turn.
                     for i = 1:n_functions
-                        user_handles{i}(element); %#ok<PFBNS>
+                        user_handles{i}(element); %#ok<*PFBNS>
                     end
 
                     % Send data to queue to allow waitbar to update as well

@@ -23,11 +23,14 @@ markerData = Data(getFullPath(ik));
 initial_time = markerData.Timesteps(1,1);
 final_time = markerData.Timesteps(end,1);
 
+% Create a subdirectory for storing results. 
+dir = ['BK__time=' num2str(initial_time) '-' num2str(final_time)];
+
 % Set the input, times and output for the tool.
 tool.setCoordinatesFileName(getFullPath(ik));
 tool.setInitialTime(initial_time);
 tool.setFinalTime(final_time);
-tool.setResultsDir(results);
+tool.setResultsDir([results filesep dir]);
 
 tool.run();
 
