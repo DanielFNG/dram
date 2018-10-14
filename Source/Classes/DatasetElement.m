@@ -16,22 +16,20 @@ classdef DatasetElement < handle
     %
     %   Users are unlikely to use DatasetElements directly. Instead, they are
     %   created by the Dataset class as part of the process method.
+    %
+    %   The base MotionFolder can contain either marker data or IK results?
 
     properties (SetAccess = private)
         ParentDataset
         Subject
         ParameterValues
-        IKComputed = false
-        AdjustmentRRAComputed = false
-        RRAComputed = false
-        BodyKinematicsComputed = false
-        IDComputed = false
-        CMCComputed = false 
     end
     
     properties (GetAccess = private, SetAccess = private)
         CellParameterValues
         DataFolderPath
+        MotionFolderPath
+        ForcesFolderPath
         ModelFolderPath
         ModelPath
         AdjustedModelPath
@@ -51,12 +49,12 @@ classdef DatasetElement < handle
             obj.CellParameterValues = num2cell(parameters);
             obj.DataFolderPath = dataset.getDataFolderPath(obj);
             obj.ModelFolderPath = dataset.getModelFolderPath(obj);
-            obj.constructRawDataPath();
+            obj.constructRawDataPaths();
             obj.constructModelPath();
         end
         
-        % Create path to the GRF and marker data files. 
-        function constructRawDataPath(obj)
+        % Create path to the raw data folder. 
+        function constructRawDataPaths(obj)
             % Create the parameter string.
             name = [];
             for i=1:obj.ParentDataset.getNContextParameters()
@@ -65,7 +63,10 @@ classdef DatasetElement < handle
             end
             
             % Create the path to the appropriate data folder.
-            obj.RawDataPath = [obj.DataFolderPath name];
+            obj.MarkersPath = [obj.DataFolderPath name filesep ...
+                obj.ParentDataset.MotionFolderName];
+            obj.ForcesPath = [obj.DataFolderPath name filesep ...
+                obj.ParentDataset.ForcesFolderName];
         end
         
         % Create path to the correct model file. 
@@ -81,119 +82,34 @@ classdef DatasetElement < handle
                 [path filesep name obj.ParentDataset.AdjustmentSuffix ext];
         end
         
-        %% Methods for performing OpenSim analyses. 
-    
-        % Perform IK on this DatasetElement.
-        function prepareBatchIK(obj)
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.IKDirectory];
-            runBatchIK(obj.ModelPath, obj.RawDataPath, output_dir);
+        function performModelAdjustment(obj)
+        
+            % Get only the first marker and grf files. 
+            markers = dirNoDots(obj.MotionFolderPath);
+            forces = dirNoDots(obj.ForcesFolderPath);
             
-            % Update knowledge of IK data path & fact IK has been computed.
-            obj.IKDataPath = output_dir;
-            obj.IKComputed = true;
+            trial = OpenSimTrial(obj.ModelPath, ...
+                [obj.MotionFolderPath filesep markers(1,1).name], ...
+                [obj.DataFolderPath filesep ...
+                    obj.ParentDataset.AdjustmentRRADirectory], ...
+                [obj.ForcesFolderPath filesep forces(1,1).name]);
+            
+            % Run an IK if necessary and then perform model adjustment 
+            % using the trial.
+            if ~trial.computed.IK
+                trial.run('IK');
+            end
+            trial.performModelAdjustment('torso', ...
+                obj.constructAdjustedModelPath(), ...
+                obj.ParentDataset.getHumanModelPath());
         end
         
-        % Perform adjustmentRRA on this DatasetElement.
-        function prepareAdjustmentRRA(obj)
-            % Check if adjustment is necessary.
-            if obj.ParentDataset.ModelAdjustmentCompleted
-                error('RRA adjustment has already been performed.');
-            end
-            
-            % Require IK for RRA to be performed.
-            if ~obj.IKComputed
-                error('IK must be performed before doing RRA analyses.');
-            end
-            
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.AdjustmentRRADirectory];
-            [~, adjusted_model] = adjustmentRRA(...
-                obj.ModelPath, obj.IKDataPath, obj.RawDataPath, output_dir, ...
-                obj.ParentDataset.getLoadName(obj));
-            
-            % Copy the adjusted model file in to the appropriate location and 
-            % update paths & computed status.
-            obj.constructAdjustedModelPath();
-            copyfile(adjusted_model, obj.AdjustedModelPath);
-            obj.AdjustmentRRAComputed = true;
+        % Run a batch of analyses on the input data.
+        function runAnalyses(obj, analyses)
+            runBatch(analyses, obj.AdjustedModelPath, ...
+                obj.MotionFolderPath, 
         end
-        
-        % Perform RRA on this DatasetElement.
-        function prepareBatchRRA(obj)
-            % Require IK for RRA to be performed.
-            if ~obj.IKComputed
-                error('IK must be performed before doing RRA analyses.');
-            end
             
-            % Require adjustment RRA.
-            if ~obj.ParentDataset.ModelAdjustmentCompleted
-                error('RRA adjustment required for this Dataset.');
-            end
-            
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.RRADirectory];
-            runBatchRRA(obj.AdjustedModelPath, obj.IKDataPath, ...
-                obj.RawDataPath, output_dir, ...
-                obj.ParentDataset.getLoadName(obj));
-            
-            % Update paths & computed status.
-            obj.RRADataPath = output_dir;
-            obj.RRAComputed = true;
-        end
-        
-        % Perform ID on this DatasetElement. 
-        function prepareBatchID(obj)
-            % Require RRA for ID to be performed. 
-            if ~obj.RRAComputed
-                error('Require RRA to compute ID.');
-            end
-            
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.IDDirectory];
-            runBatchID(obj.AdjustedModelPath, obj.RRADataPath, ...
-                obj.RawDataPath, output_dir, ...
-                obj.ParentDataset.getLoadName(obj));
-            
-            % Updated computed status.
-            obj.IDComputed = true;
-        end
-        
-        % Run BodyKinematicsAnalysis on this DatasetElement.
-        function prepareBatchBodyKinematicsAnalysis(obj)
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.BodyKinematicsDirectory];
-            
-            % Use the best available between RRA and IK. 
-            if obj.RRAComputed
-                runBatchBodyKinematicsAnalysis(obj.AdjustedModelPath, ...
-                    obj.RRADataPath, output_dir);
-            elseif obj.IKComputed
-                runBatchBodyKinematicsAnalysis(obj.ModelPath, ...
-                    obj.IKDataPath, output_dir);
-            else
-                error('Require IK or RRA data to run BodyKinematicsAnalysis.');
-            end
-            
-            % Update computed status. 
-            obj.BodyKinematicsComputed = true;
-        end
-        
-        % Run CMC on this DatasetElement.
-        function prepareBatchCMC(obj)
-            % Require RRA for CMC computation.
-            if obj.RRAComputed
-                error('Require RRA to compute CMC.');
-            end
-            
-            output_dir = [obj.RawDataPath filesep ...
-                obj.ParentDataset.CMCDirectory];
-            runBatchCMC(obj.ModelPath, obj.RRADataPath, obj.RawDataPath, ...
-                output_dir, obj.ParentDataset.getLoadName(obj));
-            
-            % Update computed status. 
-            obj.CMCComputed = true;
-        end
         
         %% Methods for loading processed data to file.
         
@@ -260,26 +176,6 @@ classdef DatasetElement < handle
             % Assign result.
             result.ID{obj.CellParameterValues{:}} = id;
         end
-    
-    end
-    
-    methods (Static)
-       
-        function temp = loadFilesOneFolder(folder, identifier)
-            % Identify the files.
-            files = dir([folder filesep '*' identifier]);
-            
-            % Create cell array of appropriate size.
-            n_files = length(files);
-            temp{n_files} = {};
-            
-            % Read in appropriate files as data objects.
-            for i=1:n_files
-                temp{i} = Data([folder filesep files(i, 1).name]);
-            end
-        end
-        
-        function temp = loadFilesMultipleFolders(
         
     end
 

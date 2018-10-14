@@ -36,16 +36,13 @@ classdef Dataset < handle
         CMCDirectory
         AdjustmentSuffix
         ModelAdjustmentValues
-        AllowedProcessingFunctions = {'prepareBatchIK', 'prepareBatchRRA', ...
-                'prepareBatchID', 'prepareBatchBodyKinematicsAnalysis', ...
-                'prepareBatchCMC'};
-        AllowedLoadingFunctions = {'loadGRF', 'loadIK', 'loadRRA', 'loadID', ...
-                'loadBodyKinematics', 'loadCMC'};
     end
     
     properties (GetAccess = private, SetAccess = private)
         SubjectPrefix
         DataFolderName
+        MarkersFolderName
+        ForcesFolderName
         ModelFolderName
         NContextParameters
         ModelParameterIndex
@@ -94,6 +91,12 @@ classdef Dataset < handle
             obj.ModelFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ModelFolderName').item(0).item(0).getData()));
+            obj.MarkersFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'MarkersFolderName').item(0).item(0).getData()));
+            obj.ForcesFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'ForcesFolderName').item(0).item(0).getData()));
             
             % Get the subject vector. 
             subjects = xml_data.getElementsByTagName('Subjects');
@@ -249,33 +252,33 @@ classdef Dataset < handle
                 for model = 1:length(adj_mod_values)
                     adj_values(model_index) = adj_mod_values(model);
                     element = DatasetElement(obj, subject, adj_values);
-                    element.prepareBatchIK();
-                    element.prepareAdjustmentRRA();
+                    element.performModelAdjustment();
                 end
             end
             obj.ModelAdjustmentCompleted = true;
         end
          
-        function process(obj, handles, varargin)
+        function process(obj, analyses, varargin)
             % Performs OpenSim processing.
-            %   Handles should be a cell array of function handles to the
-            %   appropriate methods of DatasetElement e.g. {@prepareBatchIK,
-            %   @prepareBatchRRA} is a suitable set of handles. Note that these
-            %   handles are EXECUTED IN ORDER. Care must be taken of the input
+            %   Analyses should be a cell array of OpenSim function names to the
+            %   appropriate methods of DatasetElement e.g. {'IK',
+            %   'RRA'} is a suitable set of analyses. Note that these
+            %   analyses are EXECUTED IN ORDER. Care must be taken of the input
             %   order. Attempting to execute RRA before IK will result in an 
             %   error. The user should not manually pass the combinations or 
             %   subjects parameters. These are provided by the resume function 
             %   in the case of resuming from a failed run.
-        
-            % Assign name and allowed handles for process function.
-            func = 'process';
-            allowed_handles = obj.AllowedProcessingFunctions;
+            
+            % Function to run - batch OpenSim processing.
+            func = @DatasetElement.runAnalyses();
             
             % Perform dataLoop.
-            obj.dataLoop(handles, allowed_handles, func, varargin{:});    
-            
+            obj.dataLoop(func, analyses, varargin{:});    
         end
         
+        function compute(obj, 
+        
+        % Don't need load anymore. Load will be part of compute and thereafter binned.
         function load(obj, handles, varargin)
             % Loads OpenSim data in to Matlab.
             %   See process function. Very similar but for loading. Order
@@ -292,25 +295,13 @@ classdef Dataset < handle
             
         end
         
-        function dataLoop(obj, user_handles, allowed_handles, func, ...
-                combinations)
+        function dataLoop(obj, func, inputs, combinations)
             % Loops over data to process or load data.
             %   Loops over DatasetElements performing handle functions and
             %   providing visual feedback as to process. In the event of a 
             %   failed run, a file is saved to the current directory, which can 
             %   be used to resume from once the source of the error has been 
             %   fixed (see resume function).
-        
-            % Note the number of handle functions.
-            n_functions = length(user_handles);
-            
-            % Limit which functions can be used.
-            for i=1:n_functions
-                info = functions(user_handles{i});
-                if ~any(strcmp(allowed_handles, info.function))
-                    error('Unsupported function handle.');
-                end
-            end
         
             if nargin == 4
                 % Create all possible combinations of the context parameters.
@@ -320,14 +311,14 @@ classdef Dataset < handle
                 % Continue from previous state.
                 remaining_combinations = combinations;
             else
-                error(['Incorrect input arguments to ' func '.']);
+                error(['Incorrect input arguments to dataLoop.');
             end
             
             n_combinations = size(remaining_combinations, 2);
             computed_elements = 0;
             
             % Print a starting message.
-            fprintf(['Beginning data ' func 'ing.\n']);
+            fprintf(['Beginning processing.\n']);
             
             % Create a parallel waitbar.
             p = 1;
@@ -346,7 +337,7 @@ classdef Dataset < handle
                 computed_elements = computed_elements + 1;
             end
             
-            % For every combination of subject andcontext parameters...
+            % For every combination of subject and context parameters...
             try
                 parfor combination = 1:n_combinations 
                     % Create a DatasetElement.
@@ -355,9 +346,7 @@ classdef Dataset < handle
                         remaining_combinations(2:end, combination));
 
                     % Perform the handle functions in turn.
-                    for i = 1:n_functions
-                        user_handles{i}(element); %#ok<*PFBNS>
-                    end
+                    func(element, inputs); %#ok<*PFBNS>
 
                     % Send data to queue to allow waitbar to update as well
                     % as the remaining combinations.
@@ -377,7 +366,7 @@ classdef Dataset < handle
             end
         
             % Print closing message & close loading bar.
-            fprintf(['Data ' func 'ing complete.\n']);
+            fprintf(['Data processing complete.\n']);
             close(progress);
         end
     end
