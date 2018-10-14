@@ -43,6 +43,7 @@ classdef Dataset < handle
         DataFolderName
         MarkersFolderName
         ForcesFolderName
+        ResultsFolderName
         ModelFolderName
         NContextParameters
         ModelParameterIndex
@@ -97,6 +98,9 @@ classdef Dataset < handle
             obj.ForcesFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ForcesFolderName').item(0).item(0).getData()));
+            obj.ResultsFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'ResultsFolderName').item(0).item(0).getData()));
             
             % Get the subject vector. 
             subjects = xml_data.getElementsByTagName('Subjects');
@@ -208,11 +212,6 @@ classdef Dataset < handle
                 element.ParameterValues(obj.ModelParameterIndex));
         end
         
-        function name = getLoadName(obj, element)
-            name = obj.LoadMap(...
-                element.ParameterValues(obj.ModelParameterIndex));
-        end
-        
         function n = getNContextParameters(obj)
             n = obj.NContextParameters;
         end
@@ -270,29 +269,10 @@ classdef Dataset < handle
             %   in the case of resuming from a failed run.
             
             % Function to run - batch OpenSim processing.
-            func = @DatasetElement.runAnalyses();
+            func = @DatasetElement.runAnalyses;
             
             % Perform dataLoop.
             obj.dataLoop(func, analyses, varargin{:});    
-        end
-        
-        function compute(obj, 
-        
-        % Don't need load anymore. Load will be part of compute and thereafter binned.
-        function load(obj, handles, varargin)
-            % Loads OpenSim data in to Matlab.
-            %   See process function. Very similar but for loading. Order
-            %   does not matter, but the corresponding analysis must be
-            %   processed before it can be loaded (e.g. IK must be performed
-            %   via process before the results can be loaded in to Matlab).
-            
-            % Assign name and allowed handles for load function.
-            func = 'load';
-            allowed_handles = obj.AllowedLoadingFunctions;
-            
-            % Perform dataLoop. 
-            obj.dataLoop(handles, allowed_handles, func, varargin{:});
-            
         end
         
         function dataLoop(obj, func, inputs, combinations)
@@ -311,14 +291,14 @@ classdef Dataset < handle
                 % Continue from previous state.
                 remaining_combinations = combinations;
             else
-                error(['Incorrect input arguments to dataLoop.');
+                error('Incorrect input arguments to dataLoop.');
             end
             
             n_combinations = size(remaining_combinations, 2);
             computed_elements = 0;
             
             % Print a starting message.
-            fprintf(['Beginning processing.\n']);
+            fprintf('Beginning processing.\n');
             
             % Create a parallel waitbar.
             p = 1;
@@ -366,7 +346,7 @@ classdef Dataset < handle
             end
         
             % Print closing message & close loading bar.
-            fprintf(['Data processing complete.\n']);
+            fprintf('Data processing complete.\n');
             close(progress);
         end
     end

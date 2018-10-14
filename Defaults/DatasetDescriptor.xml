@@ -8,6 +8,7 @@
             <MarkersFolderName> Markers </MarkersFolderName>
             <ForcesFolderName> Forces </ForcesFolderName>
             <ModelFolderName> Models </ModelFolderName>
+            <ResultsFolderName> Results </ResultsFolderName>
         </Strings>
         <Subjects> 1 2 3 4 6 7 8 </Subjects>
         <ContextParameters>
@@ -31,24 +32,16 @@
             <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
             <Model>
                 <Name> no_APO.osim </Name>
-                <Load> normal </Load> 
+                <Load> normal.xml </Load> 
                 <ParameterValues> 1 </ParameterValues>
                 <AdjustmentValue> 1 </AdjustmentValue>
             </Model>
             <Model>
                 <Name> APO.osim </Name>
-                <Load> apo </Load>
+                <Load> apo.xml </Load>
                 <ParameterValues> 2 3 </ParameterValues>
                 <AdjustmentValue> 2 </AdjustmentValue> 
             </Model>
         </ModelSet>
-		<OpenSimSaveDirectories>
-			<IK> IK </IK>
-			<AdjRRA> RRA_Adjustment </AdjRRA>
-			<RRA> RRA </RRA>
-			<ID> ID </ID>
-			<BodyKinematics> BK </BodyKinematics>
-			<CMC> CMC </CMC>
-		</OpenSimSaveDirectories>
     </DatasetDescriptor>
 </ExOptDocument>

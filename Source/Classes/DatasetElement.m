@@ -63,9 +63,9 @@ classdef DatasetElement < handle
             end
             
             % Create the path to the appropriate data folder.
-            obj.MarkersPath = [obj.DataFolderPath name filesep ...
+            obj.MotionFolderPath = [obj.DataFolderPath name filesep ...
                 obj.ParentDataset.MotionFolderName];
-            obj.ForcesPath = [obj.DataFolderPath name filesep ...
+            obj.ForcesFolderPath = [obj.DataFolderPath name filesep ...
                 obj.ParentDataset.ForcesFolderName];
         end
         
@@ -82,8 +82,12 @@ classdef DatasetElement < handle
                 [path filesep name obj.ParentDataset.AdjustmentSuffix ext];
         end
         
-        function performModelAdjustment(obj)
+        function path = getLoadPath(obj)
+            path = obj.ParentDataset.LoadMap(obj.ParameterValues(...
+                obj.ParentDataset.ModelParameterIndex));
+        end
         
+        function performModelAdjustment(obj)
             % Get only the first marker and grf files. 
             markers = dirNoDots(obj.MotionFolderPath);
             forces = dirNoDots(obj.ForcesFolderPath);
@@ -107,76 +111,12 @@ classdef DatasetElement < handle
         % Run a batch of analyses on the input data.
         function runAnalyses(obj, analyses)
             runBatch(analyses, obj.AdjustedModelPath, ...
-                obj.MotionFolderPath, 
+                obj.MotionFolderPath, ...
+                obj.ParentDataset.ResultsFolderName, ...
+                obj.ForcesFolderPath, ...
+                'load', obj.getLoadName());
         end
-            
-        
-        %% Methods for loading processed data to file.
-        
-        function result = loadGRF(obj)
-            % Load files.
-            grf = obj.loadSimple(obj.RawDataPath, '.mot');
-            
-            % Assign result.
-            result.GRF{obj.CellParameterValues{:}} = grf;
-        end
-        
-        function result = loadIK(obj)
-            % Load files.
-            ik = obj.loadSimple(obj.IKDataPath, '.mot');
-            
-            % Assign result.
-            result.IK{obj.CellParameterValues{:}} = ik;
-        end
-        
-        function result = loadInputMarkers(obj)
-            % Load files.
-            im = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.trc']);
-            
-            % Assign result.
-            result.InputMarkers{obj.CellParameterValues{:}} = im;
-        end
-        
-        function result = loadOutputMarkers(obj)
-            % Load files.
-            om = obj.loadSimple([obj.IKDataPath filesep 'MarkerData', '.sto']);
-            
-            % Assign result.
-            result.OutputMarkers{obj.CellParameterValues{:}} = om;
-        end
-        
-        function result = loadBodyPositions(obj)
-            % Load files.
-            pos = obj.loadSimple([obj.RawDataPath filesep ...
-                obj.ParentDataset.BodyKinematicsDirectory], '.    
-        end
-        
-        function result = loadID(obj)
-            % Identify ID folders.
-            id_path = [obj.RawDataPath filesep obj.ParentDataset.IDDirectory];
-            folders = getSubfolders(id_path);
-                
-            % Create a cell array of appropriate size.
-            n_folders = length(folders);
-            id{n_folders} = {};
-            
-            % Read in the ID analyses appropriately. 
-            for i=1:n_folders
-                % Identify current folder.
-                folder = getSubfolders([id_path filesep folders(i, 1).name]);
-                if length(folder) ~= 1
-                    error('Multiple or zero ID folders detected.');
-                end
-                
-                % Load folder. 
-                id{i} = Data([id_path folders(i, 1).name filesep ...
-                    folder(1, 1).name filesep 'id.sto']);
-            end
-            
-            % Assign result.
-            result.ID{obj.CellParameterValues{:}} = id;
-        end
-        
+       
     end
 
 end
