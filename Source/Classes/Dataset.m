@@ -32,6 +32,11 @@ classdef Dataset < handle
         ModelAdjustmentValues
     end
     
+    properties (GetAccess = private, SetAccess = private)
+        DesiredSubjectValues
+        DesiredParameterValues
+    end
+    
     properties %(GetAccess = private, SetAccess = private)
         SubjectPrefix
         DataFolderName
@@ -48,8 +53,6 @@ classdef Dataset < handle
         DatasetRoot
         
         AdjustmentParameterValues
-        DesiredSubjectValues
-        DesiredParameterValues
     end
     
     methods
@@ -149,17 +152,18 @@ classdef Dataset < handle
     
             % Get the model set data.
             model_set = xml_data.getElementsByTagName('Model');
+            load_set = xml_data.getElementsByTagName('Load');
             n_models = model_set.getLength();
+            n_loads = load_set.getLength();
             model_names = cell(n_models, 1);
-            model_loads = cell(n_models, 1);
+            load_names = cell(n_loads, 1);
             model_indices = cell(n_models, 1);
+            load_indices = cell(n_models, 1);
             model_adjustment_values = zeros(n_models, 1);
             k = 1;
             for i=0:n_models - 1
                 model_names{i + 1} = strtrim(char(model_set.item(i). ...
                     getElementsByTagName('Name').item(0).item(0).getData()));
-                model_loads{i + 1} = strtrim(char(model_set.item(i). ...
-                    getElementsByTagName('Load').item(0).item(0).getData()));
                 model_indices{i + 1} = str2num(strtrim(char(...
                     model_set.item(i).getElementsByTagName(...
                     'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
@@ -167,15 +171,27 @@ classdef Dataset < handle
                     model_set.item(i).getElementsByTagName(...
                     'AdjustmentValue').item(0).item(0).getData())));
                 for j=1:length(model_indices{i+1})
-                    map_key{k} = model_indices{i + 1}(j); %#ok<*AGROW>
-                    map_value{k} = model_names{i + 1};
-                    load_map_value{k} = model_loads{i + 1};
+                    model_map_key{k} = model_indices{i + 1}(j); %#ok<*AGROW>
+                    model_map_value{k} = model_names{i + 1};
                     k = k + 1;
                 end
             end
             obj.ModelAdjustmentValues = model_adjustment_values;
-            obj.ModelMap = containers.Map(map_key, map_value);
-            obj.LoadMap = containers.Map(map_key, load_map_value);
+            obj.ModelMap = containers.Map(model_map_key, model_map_value);
+            k = 1;
+            for i=0:n_loads - 1
+                load_names{i + 1} = strtrim(char(load_set.item(i). ...
+                    getElementsByTagName('Name').item(0).item(0).getData()));
+                load_indices{i + 1} = str2num(strtrim(char(...
+                    load_set.item(i).getElementsByTagName(...
+                    'ParameterValues').item(0).item(0).getData()))); %#ok<ST2NM>
+                for j=1:length(load_indices{i + 1})
+                    load_map_key{k} = load_indices{i + 1}(j);
+                    load_map_value{k} = load_names{i + 1};
+                    k = k + 1;
+                end
+            end               
+            obj.LoadMap = containers.Map(load_map_key, load_map_value);
         end
         
         function path = getSubjectFolderName(obj, element)
@@ -283,7 +299,8 @@ classdef Dataset < handle
             if nargin == 3
                 % Create all possible combinations of the context parameters.
                 params = obj.getDesiredParameterValues();
-                remaining_combinations = combvec(obj.Subjects, params{1,:});
+                remaining_combinations = combvec(...
+                    obj.getDesiredSubjectValues(), params{1,:});
             elseif nargin == 4
                 % Continue from previous state.
                 remaining_combinations = combinations;
@@ -305,7 +322,7 @@ classdef Dataset < handle
             afterEach(queue, @updateCombinations);
             
             function nUpdateWaitbar(~)
-                waitbar(p/total, progress);
+                waitbar(p/n_combinations, progress);
                 p = p + 1;
             end
             
@@ -316,7 +333,7 @@ classdef Dataset < handle
             
             % For every combination of subject and context parameters...
             try
-                for combination = 1:n_combinations 
+                parfor combination = 1:n_combinations 
                     % Create a DatasetElement.
                     element = DatasetElement(obj, ...
                         remaining_combinations(1, combination), ...
