@@ -8,6 +8,7 @@
             <MarkersFolderName> Markers </MarkersFolderName>
             <ForcesFolderName> Forces </ForcesFolderName>
             <ModelFolderName> Models </ModelFolderName>
+            <AdjustmentFolderName> Adjustment </AdjustmentFolderName>
             <ResultsFolderName> Results </ResultsFolderName>
         </Strings>
         <Subjects> 1 2 3 4 6 7 8 </Subjects>
@@ -29,19 +30,35 @@
             </Parameter>
         </ContextParameters>
         <ModelSet>
+            <HumanModel> gait2392_simbody.osim </HumanModel>
             <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
             <Model>
                 <Name> no_APO.osim </Name>
-                <Load> normal.xml </Load> 
                 <ParameterValues> 1 </ParameterValues>
                 <AdjustmentValue> 1 </AdjustmentValue>
             </Model>
             <Model>
                 <Name> APO.osim </Name>
-                <Load> apo.xml </Load>
                 <ParameterValues> 2 3 </ParameterValues>
                 <AdjustmentValue> 2 </AdjustmentValue> 
             </Model>
         </ModelSet>
+        <LoadSet>
+            <Load>
+                <Name> normal.xml </Name>
+                <ParameterValues> 1 2 </ParameterValues>
+            </Load>
+            <Load>
+                <Name> apo.xml </Name>
+               <ParameterValues> 3 </ParameterValues>
+            </Load>
+        </LoadSet>
+        <OpenSimSettings>
+            </IK>
+            </RRA>
+            </BK>
+            </ID>
+            </CMC>
+        </OpenSimSettings>
     </DatasetDescriptor>
 </ExOptDocument>

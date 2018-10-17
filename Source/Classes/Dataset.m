@@ -28,23 +28,19 @@ classdef Dataset < handle
     end
     
     properties (SetAccess = private, Hidden = true)
-        IKDirectory
-        AdjustmentRRADirectory
-        RRADirectory
-        IDDirectory
-        BodyKinematicsDirectory
-        CMCDirectory
         AdjustmentSuffix
         ModelAdjustmentValues
     end
     
-    properties (GetAccess = private, SetAccess = private)
+    properties %(GetAccess = private, SetAccess = private)
         SubjectPrefix
         DataFolderName
-        MarkersFolderName
+        MotionFolderName
         ForcesFolderName
+        AdjustmentFolderName
         ResultsFolderName
         ModelFolderName
+        HumanModel
         NContextParameters
         ModelParameterIndex
         ModelMap
@@ -92,15 +88,21 @@ classdef Dataset < handle
             obj.ModelFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ModelFolderName').item(0).item(0).getData()));
-            obj.MarkersFolderName = ...
+            obj.MotionFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'MarkersFolderName').item(0).item(0).getData()));
             obj.ForcesFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ForcesFolderName').item(0).item(0).getData()));
+            obj.AdjustmentFolderName = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'AdjustmentFolderName').item(0).item(0).getData()));
             obj.ResultsFolderName = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'ResultsFolderName').item(0).item(0).getData()));
+            obj.HumanModel = ...
+                strtrim(char(xml_data.getElementsByTagName(...
+                'HumanModel').item(0).item(0).getData()));
             
             % Get the subject vector. 
             subjects = xml_data.getElementsByTagName('Subjects');
@@ -174,42 +176,37 @@ classdef Dataset < handle
             obj.ModelAdjustmentValues = model_adjustment_values;
             obj.ModelMap = containers.Map(map_key, map_value);
             obj.LoadMap = containers.Map(map_key, load_map_value);
-            
-            % Get the results directory names. 
-            obj.IKDirectory = strtrim(char(xml_data.getElementsByTagName(...
-                'IK').item(0).item(0).getData()));
-            obj.AdjustmentRRADirectory = strtrim(char(...
-                xml_data.getElementsByTagName('AdjRRA').item(0).item(0). ...
-                getData()));
-            obj.RRADirectory = strtrim(char(xml_data.getElementsByTagName(...
-                'RRA').item(0).item(0).getData()));
-            obj.BodyKinematicsDirectory = strtrim(char(xml_data. ...
-                getElementsByTagName('BodyKinematics'). ...
-                item(0).item(0).getData()));
-            obj.IDDirectory = strtrim(char(xml_data.getElementsByTagName(...
-                'ID').item(0).item(0).getData()));
-            obj.CMCDirectory = strtrim(char(xml_data.getElementsByTagName(...
-                'CMC').item(0).item(0).getData()));
         end
         
-        function path = getSubjectFolderPath(obj, element)
-            path = [obj.DatasetRoot filesep obj.SubjectPrefix...
-                num2str(element.Subject)];
+        function path = getSubjectFolderName(obj, element)
+            path = [obj.SubjectPrefix num2str(element.Subject)];
         end
         
-        function path = getDataFolderPath(obj, element)
-            path = [obj.getSubjectFolderPath(element) filesep ...
-                obj.DataFolderName]; 
+        function path = getDataFolderPath(obj)
+            path = [obj.DatasetRoot filesep obj.DataFolderName];
         end
         
-        function path = getModelFolderPath(obj, element)
-            path = [obj.getSubjectFolderPath(element) filesep ...
-                obj.ModelFolderName];
+        function path = getModelFolderPath(obj)
+            path = [obj.DatasetRoot filesep obj.ModelFolderName];
+        end
+        
+        function path = getHumanModelPath(obj)
+            path = [obj.getModelFolderPath() filesep obj.HumanModel];
         end
         
         function name = getModelName(obj, element)
             name = obj.ModelMap(...
                 element.ParameterValues(obj.ModelParameterIndex));
+        end
+        
+        function name = getLoadName(obj, element)
+            name = obj.LoadMap(...
+                element.ParameterValues(obj.ModelParameterIndex));
+        end
+        
+        function path = getLoadPath(obj, element)
+            name = obj.getLoadName(element);
+            path = [obj.getModelFolderPath filesep name];
         end
         
         function n = getNContextParameters(obj)
@@ -269,7 +266,7 @@ classdef Dataset < handle
             %   in the case of resuming from a failed run.
             
             % Function to run - batch OpenSim processing.
-            func = @DatasetElement.runAnalyses;
+            func = @runAnalyses;
             
             % Perform dataLoop.
             obj.dataLoop(func, analyses, varargin{:});    
@@ -283,11 +280,11 @@ classdef Dataset < handle
             %   be used to resume from once the source of the error has been 
             %   fixed (see resume function).
         
-            if nargin == 4
+            if nargin == 3
                 % Create all possible combinations of the context parameters.
                 params = obj.getDesiredParameterValues();
                 remaining_combinations = combvec(obj.Subjects, params{1,:});
-            elseif nargin == 6
+            elseif nargin == 4
                 % Continue from previous state.
                 remaining_combinations = combinations;
             else
@@ -303,7 +300,7 @@ classdef Dataset < handle
             % Create a parallel waitbar.
             p = 1;
             queue = parallel.pool.DataQueue;
-            progress = waitbar(0, [func 'ing data...']);
+            progress = waitbar(0, 'Processing data...');
             afterEach(queue, @nUpdateWaitbar);
             afterEach(queue, @updateCombinations);
             
@@ -319,7 +316,7 @@ classdef Dataset < handle
             
             % For every combination of subject and context parameters...
             try
-                parfor combination = 1:n_combinations 
+                for combination = 1:n_combinations 
                     % Create a DatasetElement.
                     element = DatasetElement(obj, ...
                         remaining_combinations(1, combination), ...
@@ -340,7 +337,7 @@ classdef Dataset < handle
                 remaining_combinations = reshape(remaining_combinations, ...
                     [nrows, ncols - computed_elements]);
                 save([obj.DatasetRoot filesep ...
-                    datestr(now, 30) '.mat'], 'obj', 'handles', 'func', ...
+                    datestr(now, 30) '.mat'], 'obj', 'inputs', ...
                     'remaining_combinations');
                 rethrow(err);
             end
@@ -359,14 +356,8 @@ classdef Dataset < handle
             %   by the dataLoop method (e.g. for a failed run). Resumes 
             %   processing or loading from the point of failure.
             
-            load(filename, 'obj', 'handles', 'func', 'remaining_combinations');
-            if strcmp(func, 'process')
-                obj.process(...
-                    handles, remaining_combinations);
-            elseif strcmp(func, 'load')
-                obj.load(...
-                    handles, remaining_combinations);
-            end
+            load(filename, 'obj', 'inputs', 'remaining_combinations');
+            obj.process(inputs, remaining_combinations);
         end
     end
     
