@@ -1,6 +1,9 @@
 classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
-    %UNTITLED Summary of this class goes here
-    %   Detailed explanation goes here
+    % A subset of a Dataset.
+    %   Similar functionality to a Dataset except working with reduced
+    %   ranges of the context parameters. For example, for a Dataset with a
+    %   context parameter A such that 1 <= A <= 10, a DataSubset might have
+    %   4 <= A <= 7.
     
     properties (SetAccess = private)
         SubsetName
@@ -9,6 +12,7 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
     end
     
     methods
+        
         function obj = DataSubset(...
                 root, name, subjects, varargin)
             obj@Dataset(root);
@@ -17,15 +21,49 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
             obj.parseParameterList(varargin);
         end
         
-        % Interpet user-provided parameter list. 
-        %   This function parses the name-value pairs of context parameter
-        %   ranges provided by the user, and reformats them in to an ordered
-        %   cell array.  
+    end
+    
+    methods (Access = protected)
+        
+        function params = getDesiredParameterValues(obj)
+            % Get desired parameter values of DataSubset rather than
+            % Dataset.
+            params = obj.DesiredParameterValues;
+        end
+        
+        function subjects = getDesiredSubjectValues(obj)
+            % Get desired subject values of DataSubset rather than Dataset.
+            subjects = obj.DesiredSubjectValues;
+        end
+        
+        function values = getModelAdjustmentValues(obj)
+            % Get values of the model parameter to use for adjustment.
+            %   Extra logic compared to Dataset class; takes the
+            %   intersection of the total model values and the subclass
+            %   model parameter range.
+            desired_values = obj.getDesiredParameterValues();
+            model_values = desired_values{obj.ModelParameterIndex};
+            values = intersect(obj.ModelAdjustmentValues, model_values);
+        end
+    
+        function propgrp = getPropertyGroups(~)
+            % Re-orders the property list of DataSubset objects.
+            proplist = {'DatasetName', 'SubsetName', 'DesiredSubjectValues', ...
+                'ContextParameters', 'DesiredParameterValues'};
+            propgrp = matlab.mixin.util.PropertyGroup(proplist);
+        end
+    end
+    
+    methods (Access = private)
+        
         function parsed_param_list = parseParameterList(obj, param_list)
-            n_params = obj.getNContextParameters();
-            if length(param_list) == 2 * n_params
-                parsed_param_list = cell(1, n_params);
-                for i=1:2:2 * n_params - 1
+            % Interpret user-provided parameter list.
+            %   This function parses the name-value pairs of context parameter
+            %   ranges provided by the user, and reformats them in to an 
+            %   ordered cell array.
+            if length(param_list) == 2 * obj.NContextParameters
+                parsed_param_list = cell(1, obj.NContextParameters);
+                for i=1:2:2 * obj.NContextParameters - 1
                     if ~strcmp(obj.ContextParameters, param_list{i})
                         error('Context parameter name not recognised.');
                     else
@@ -39,38 +77,7 @@ classdef DataSubset < Dataset & matlab.mixin.CustomDisplay
                     'context parameters in this Dataset.']);
             end
             obj.DesiredParameterValues = parsed_param_list;
-        end
-        
-        %% These methods replace corresponding methods of the Dataset class.
-        
-        function params = getDesiredParameterValues(obj)
-            params = obj.DesiredParameterValues;
-        end
-        
-        function subjects = getDesiredSubjectValues(obj)
-            subjects = obj.DesiredSubjectValues;
-        end
-        
-        % Gets the values of the model parameter to be used for RRA adjustment.
-        %   Note the extra logic compared to the dataset class; takes the 
-        %   intersection of the total Dataset model values and the subclass 
-        %   model parameter range.
-        function adj_mod_values = getModelAdjustmentValues(obj)
-            desired_values = obj.getDesiredParameterValues();
-            model_values = desired_values{obj.getModelParameterIndex()};
-            adj_mod_values = intersect(obj.ModelAdjustmentValues, model_values);
-        end
-    end
-    
-    %% Special methods. 
-    methods (Access = protected)
-    
-        % Re-orders the property list of DataSubset objects.
-        function propgrp = getPropertyGroups(~)
-            proplist = {'DatasetName', 'SubsetName', 'DesiredSubjectValues', ...
-                'ContextParameters', 'DesiredParameterValues'};
-            propgrp = matlab.mixin.util.PropertyGroup(proplist);
-        end
+        end 
     end
 end
 

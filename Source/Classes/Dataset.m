@@ -27,32 +27,23 @@ classdef Dataset < handle
         ModelAdjustmentCompleted = false
     end
     
-    properties (SetAccess = private, Hidden = true)
+    properties (Access = {?DatasetElement, ?Dataset})
+        NContextParameters
+        ModelParameterIndex
         AdjustmentSuffix
-        ModelAdjustmentValues
-    end
-    
-    properties (GetAccess = private, SetAccess = private)
-        DesiredSubjectValues
-        DesiredParameterValues
-    end
-    
-    properties %(GetAccess = private, SetAccess = private)
         SubjectPrefix
-        DataFolderName
         MotionFolderName
         ForcesFolderName
         AdjustmentFolderName
         ResultsFolderName
-        ModelFolderName
-        HumanModel
-        NContextParameters
-        ModelParameterIndex
         ModelMap
         LoadMap
-        DatasetRoot
-        
+        ModelAdjustmentValues
+        DataFolderName
+        ModelFolderName
+        HumanModel
         AdjustmentParameterValues
+        DatasetRoot
     end
     
     methods
@@ -69,10 +60,169 @@ classdef Dataset < handle
                 obj.parseDatasetDescriptor();
             end
         end
+        
+        function performModelAdjustment(obj)
+            % Corrects for dynamic inconsistency in the model using RRA.
+            %   This function performs RRA analyses (and the IK analyses which
+            %   are required to do this) based on what is specified in the
+            %   DatasetDescriptor. RRA is performed and then the masses of the
+            %   model bodies are adjusted based on the RRA results.
+        
+            % Check if this is needed.
+            if obj.ModelAdjustmentCompleted
+                error('Model adjustment already performed.');
+            end
+            
+            model_vals = obj.getModelAdjustmentValues();
+            non_model_vals = obj.AdjustmentParameterValues;
+            for subject = obj.getDesiredSubjectValues()
+                for model = 1:length(model_vals)
+                    non_model_vals(obj.ModelParameterIndex) = model_vals(model);
+                    element = DatasetElement(obj, subject, non_model_vals);
+                    element.performModelAdjustment();
+                end
+            end
+            obj.ModelAdjustmentCompleted = true;
+        end
+         
+        function process(obj, analyses, varargin)
+            % Performs OpenSim processing.
+            %   Analyses should be a cell array of OpenSim function names to the
+            %   appropriate methods of DatasetElement e.g. {'IK',
+            %   'RRA'} is a suitable set of analyses. Note that these
+            %   analyses are EXECUTED IN ORDER. Care must be taken of the input
+            %   order. Attempting to execute RRA before IK will result in an 
+            %   error. The user should not manually pass the combinations or 
+            %   subjects parameters. These are provided by the resume function 
+            %   in the case of resuming from a failed run.
+            
+            % Function to run - batch OpenSim processing.
+            func = @runAnalyses;
+            
+            % Perform dataLoop.
+            obj.dataLoop(func, analyses, varargin{:});    
+        end
+        
+    end
+    
+    methods (Access = ?DatasetElement)
+        
+        function path = getDataFolderPath(obj)
+            % Path to external data folder. 
+            path = [obj.DatasetRoot filesep obj.DataFolderName];
+        end
+        
+        function path = getModelFolderPath(obj)
+            % Path to external model folder. 
+            path = [obj.DatasetRoot filesep obj.ModelFolderName];
+        end
+        
+        function path = getHumanModelPath(obj)
+            % Path to human model file. 
+            path = [obj.getModelFolderPath() filesep obj.HumanModel];
+        end
+        
+    end
+    
+    methods (Access = protected)
+        
+        function params = getDesiredParameterValues(obj)
+            % Gets vector of parameter values. Required for DataSubset.
+            params = obj.ContextParameterRanges;
+        end
+        
+        function subjects = getDesiredSubjectValues(obj)
+            % Gets vector of subject values. Required for DataSubset. 
+            subjects = obj.Subjects;
+        end
+        
+       function values = getModelAdjustmentValues(obj)
+            % Get values of the model parameter to use for adjustment.
+            %   Required for DataSubset.
+            values = obj.ModelAdjustmentValues;
+       end
+        
+       function dataLoop(obj, func, inputs, combinations)
+           % Loops over data to process or load data.
+           %   Loops over DatasetElements performing handle functions and
+           %   providing visual feedback as to process. In the event of a
+           %   failed run, a file is saved to the current directory, which can
+           %   be used to resume from once the source of the error has been
+           %   fixed (see resume function).
+           
+           if nargin == 3
+               % Create all possible combinations of the context parameters.
+               params = obj.getDesiredParameterValues();
+               remaining_combinations = combvec(...
+                   obj.getDesiredSubjectValues(), params{1,:});
+           elseif nargin == 4
+               % Continue from previous state.
+               remaining_combinations = combinations;
+           else
+               error('Incorrect input arguments to dataLoop.');
+           end
+           
+           n_combinations = size(remaining_combinations, 2);
+           computed_elements = 0;
+           
+           % Print a starting message.
+           fprintf('Beginning processing.\n');
+           
+           % Create a parallel waitbar.
+           p = 1;
+           queue = parallel.pool.DataQueue;
+           progress = waitbar(0, 'Processing data...');
+           afterEach(queue, @nUpdateWaitbar);
+           afterEach(queue, @updateCombinations);
+           
+           function nUpdateWaitbar(~)
+               waitbar(p/n_combinations, progress);
+               p = p + 1;
+           end
+           
+           function updateCombinations(n)
+               remaining_combinations(:, n) = 0;
+               computed_elements = computed_elements + 1;
+           end
+           
+           % For every combination of subject and context parameters...
+           try
+               parfor combination = 1:n_combinations
+                   % Create a DatasetElement.
+                   element = DatasetElement(obj, ...
+                       remaining_combinations(1, combination), ...
+                       remaining_combinations(2:end, combination));
+                   
+                   % Perform the handle functions in turn.
+                   func(element, inputs); %#ok<*PFBNS>
+                   
+                   % Send data to queue to allow waitbar to update as well
+                   % as the remaining combinations.
+                   send(queue, combination);
+               end
+           catch err
+               close(progress);
+               nrows = size(remaining_combinations, 1);
+               ncols = size(remaining_combinations, 2);
+               remaining_combinations(remaining_combinations == 0) = [];
+               remaining_combinations = reshape(remaining_combinations, ...
+                   [nrows, ncols - computed_elements]);
+               save([obj.DatasetRoot filesep ...
+                   datestr(now, 30) '.mat'], 'obj', 'inputs', ...
+                   'remaining_combinations');
+               rethrow(err);
+           end
+           
+           % Print closing message & close loading bar.
+           fprintf('Data processing complete.\n');
+           close(progress);
+       end
+    end
+    
+    methods (Access = private)
     
         function parseDatasetDescriptor(obj)
-
-            % Parse the DatasetDescriptor file.
+            % Parse the DatasetDescriptor file and assign properties.
             xml_data = xmlread([obj.DatasetRoot filesep ...
                 'DatasetDescriptor.xml']);
 
@@ -111,7 +261,6 @@ classdef Dataset < handle
             subjects = xml_data.getElementsByTagName('Subjects');
             obj.Subjects = str2num(strtrim(char(subjects.item(0). ...
                 item(0).getData()))); %#ok<ST2NM>
-            obj.DesiredSubjectValues = obj.Subjects;
 
             % Get the context parameter data.
             parameters = xml_data.getElementsByTagName('Parameter');
@@ -141,7 +290,6 @@ classdef Dataset < handle
                 end
             end
             obj.ContextParameters = parameter_names;
-            obj.DesiredParameterValues = parameter_values;
             obj.ContextParameterRanges = parameter_values;
             obj.AdjustmentParameterValues = adjustment_values;
             obj.ModelParameterIndex = find(strcmp(obj.ContextParameters, ...
@@ -193,184 +341,14 @@ classdef Dataset < handle
             end               
             obj.LoadMap = containers.Map(load_map_key, load_map_value);
         end
-        
-        function path = getSubjectFolderName(obj, element)
-            path = [obj.SubjectPrefix num2str(element.Subject)];
-        end
-        
-        function path = getDataFolderPath(obj)
-            path = [obj.DatasetRoot filesep obj.DataFolderName];
-        end
-        
-        function path = getModelFolderPath(obj)
-            path = [obj.DatasetRoot filesep obj.ModelFolderName];
-        end
-        
-        function path = getHumanModelPath(obj)
-            path = [obj.getModelFolderPath() filesep obj.HumanModel];
-        end
-        
-        function name = getModelName(obj, element)
-            name = obj.ModelMap(...
-                element.ParameterValues(obj.ModelParameterIndex));
-        end
-        
-        function name = getLoadName(obj, element)
-            name = obj.LoadMap(...
-                element.ParameterValues(obj.ModelParameterIndex));
-        end
-        
-        function path = getLoadPath(obj, element)
-            name = obj.getLoadName(element);
-            path = [obj.getModelFolderPath filesep name];
-        end
-        
-        function n = getNContextParameters(obj)
-            n = obj.NContextParameters;
-        end
-        
-        function params = getDesiredParameterValues(obj)
-            params = obj.DesiredParameterValues;
-        end
-        
-        function subjects = getDesiredSubjectValues(obj)
-            subjects = obj.DesiredSubjectValues;
-        end
-        
-        function adj_mod_values = getModelAdjustmentValues(obj)
-            adj_mod_values = obj.ModelAdjustmentValues;
-        end
-        
-        function index = getModelParameterIndex(obj)
-            index = obj.ModelParameterIndex;
-        end
-         
-        function performModelAdjustment(obj)
-            % Corrects for dynamic inconsistency in the model using RRA.
-            %   This function performs RRA analyses (and the IK analyses which
-            %   are required to do this) based on what is specified in the
-            %   DatasetDescriptor. RRA is performed and then the masses of the
-            %   model bodies are adjusted based on the RRA results.
-        
-            % Check if this is needed.
-            if obj.ModelAdjustmentCompleted
-                error('Model adjustment already performed.');
-            end
-            
-            adj_mod_values = obj.getModelAdjustmentValues();
-            adj_values = obj.AdjustmentParameterValues;
-            model_index = adj_values == 0;
-            for subject = obj.getDesiredSubjectValues()
-                for model = 1:length(adj_mod_values)
-                    adj_values(model_index) = adj_mod_values(model);
-                    element = DatasetElement(obj, subject, adj_values);
-                    element.performModelAdjustment();
-                end
-            end
-            obj.ModelAdjustmentCompleted = true;
-        end
-         
-        function process(obj, analyses, varargin)
-            % Performs OpenSim processing.
-            %   Analyses should be a cell array of OpenSim function names to the
-            %   appropriate methods of DatasetElement e.g. {'IK',
-            %   'RRA'} is a suitable set of analyses. Note that these
-            %   analyses are EXECUTED IN ORDER. Care must be taken of the input
-            %   order. Attempting to execute RRA before IK will result in an 
-            %   error. The user should not manually pass the combinations or 
-            %   subjects parameters. These are provided by the resume function 
-            %   in the case of resuming from a failed run.
-            
-            % Function to run - batch OpenSim processing.
-            func = @runAnalyses;
-            
-            % Perform dataLoop.
-            obj.dataLoop(func, analyses, varargin{:});    
-        end
-        
-        function dataLoop(obj, func, inputs, combinations)
-            % Loops over data to process or load data.
-            %   Loops over DatasetElements performing handle functions and
-            %   providing visual feedback as to process. In the event of a 
-            %   failed run, a file is saved to the current directory, which can 
-            %   be used to resume from once the source of the error has been 
-            %   fixed (see resume function).
-        
-            if nargin == 3
-                % Create all possible combinations of the context parameters.
-                params = obj.getDesiredParameterValues();
-                remaining_combinations = combvec(...
-                    obj.getDesiredSubjectValues(), params{1,:});
-            elseif nargin == 4
-                % Continue from previous state.
-                remaining_combinations = combinations;
-            else
-                error('Incorrect input arguments to dataLoop.');
-            end
-            
-            n_combinations = size(remaining_combinations, 2);
-            computed_elements = 0;
-            
-            % Print a starting message.
-            fprintf('Beginning processing.\n');
-            
-            % Create a parallel waitbar.
-            p = 1;
-            queue = parallel.pool.DataQueue;
-            progress = waitbar(0, 'Processing data...');
-            afterEach(queue, @nUpdateWaitbar);
-            afterEach(queue, @updateCombinations);
-            
-            function nUpdateWaitbar(~)
-                waitbar(p/n_combinations, progress);
-                p = p + 1;
-            end
-            
-            function updateCombinations(n)
-                remaining_combinations(:, n) = 0;
-                computed_elements = computed_elements + 1;
-            end
-            
-            % For every combination of subject and context parameters...
-            try
-                parfor combination = 1:n_combinations 
-                    % Create a DatasetElement.
-                    element = DatasetElement(obj, ...
-                        remaining_combinations(1, combination), ...
-                        remaining_combinations(2:end, combination));
-
-                    % Perform the handle functions in turn.
-                    func(element, inputs); %#ok<*PFBNS>
-
-                    % Send data to queue to allow waitbar to update as well
-                    % as the remaining combinations.
-                    send(queue, combination);
-                end
-            catch err
-                close(progress);
-                nrows = size(remaining_combinations, 1);
-                ncols = size(remaining_combinations, 2);
-                remaining_combinations(remaining_combinations == 0) = [];
-                remaining_combinations = reshape(remaining_combinations, ...
-                    [nrows, ncols - computed_elements]);
-                save([obj.DatasetRoot filesep ...
-                    datestr(now, 30) '.mat'], 'obj', 'inputs', ...
-                    'remaining_combinations');
-                rethrow(err);
-            end
-        
-            % Print closing message & close loading bar.
-            fprintf('Data processing complete.\n');
-            close(progress);
-        end
     end
     
-    methods (Static)
-     
+    methods (Static, Access = protected)
+        
         function resume(filename)
             % Continue data processing from a save file.
             %   Takes as input the filename of a save file which was produced
-            %   by the dataLoop method (e.g. for a failed run). Resumes 
+            %   by the dataLoop method (e.g. for a failed run). Resumes
             %   processing or loading from the point of failure.
             
             load(filename, 'obj', 'inputs', 'remaining_combinations');
