@@ -162,32 +162,37 @@ classdef Dataset < handle
                error('Incorrect input arguments to dataLoop.');
            end
            
-           n_combinations = size(remaining_combinations, 2);
-           computed_elements = 0;
-           
            % Print a starting message.
            fprintf('Beginning processing.\n');
            
-           % Create a parallel waitbar.
-           p = 1;
-           queue = parallel.pool.DataQueue;
-           progress = waitbar(0, 'Processing data...');
-           afterEach(queue, @nUpdateWaitbar);
-           afterEach(queue, @updateCombinations);
+           % Create a record of the current attempt. 
+           attempt = parallel.pool.DataQueue;
+           current_attempt = 0;
+           afterEach(attempt, @noteCurrentAttempt);
            
-           function nUpdateWaitbar(~)
-               waitbar(p/n_combinations, progress);
-               p = p + 1;
+           function noteCurrentAttempt(n)
+               current_attempt = remaining_combinations(:, n);
            end
+           
+           % Create a parallel waitbar + record of remaining combinations.
+           queue = parallel.pool.DataQueue;
+           n_combinations = size(remaining_combinations, 2);
+           computed_elements = 0;
+           progress = waitbar(0, 'Processing data...');
+           afterEach(queue, @updateCombinations);
            
            function updateCombinations(n)
                remaining_combinations(:, n) = 0;
                computed_elements = computed_elements + 1;
+               waitbar(computed_elements/n_combinations, progress);
            end
            
            % For every combination of subject and context parameters...
            try
                parfor combination = 1:n_combinations
+                   % Note the current attempt.
+                   send(attempt, combination);
+                   
                    % Create a DatasetElement.
                    element = DatasetElement(obj, ...
                        remaining_combinations(1, combination), ...
@@ -207,6 +212,8 @@ classdef Dataset < handle
                remaining_combinations(remaining_combinations == 0) = [];
                remaining_combinations = reshape(remaining_combinations, ...
                    [nrows, ncols - computed_elements]);
+               fprintf('Failed on the following combination:\n');
+               current_attempt %#ok<NOPRT>
                save([obj.DatasetRoot filesep ...
                    datestr(now, 30) '.mat'], 'obj', 'inputs', ...
                    'remaining_combinations');
@@ -343,7 +350,7 @@ classdef Dataset < handle
         end
     end
     
-    methods (Static, Access = protected)
+    methods (Static)
         
         function resume(filename)
             % Continue data processing from a save file.
