@@ -177,15 +177,18 @@ classdef Dataset < handle
            % Create a parallel waitbar + record of remaining combinations.
            queue = parallel.pool.DataQueue;
            n_combinations = size(remaining_combinations, 2);
+           combination_status = zeros(1, n_combinations);
            computed_elements = 0;
            progress = waitbar(0, 'Processing data...');
            afterEach(queue, @updateCombinations);
            
            function updateCombinations(n)
-               remaining_combinations(:, n) = 0;
+               combination_status(n) = 1;
                computed_elements = computed_elements + 1;
                waitbar(computed_elements/n_combinations, progress);
            end
+           
+           warning('off', 'MATLAB:DELETE:PermissionDenied');
            
            % For every combination of subject and context parameters...
            try
@@ -204,12 +207,19 @@ classdef Dataset < handle
                    % Send data to queue to allow waitbar to update as well
                    % as the remaining combinations.
                    send(queue, combination);
+                   
+                   [~, info] = memory;
+                   proportion_free = ...
+                       info.PhysicalMemory.Total/info.PhysicalMemory.Available
+                   if proportion_free < 0.1
+                       error('Running out of RAM. Please resume from save.');
+                   end
                end
            catch err
                close(progress);
                nrows = size(remaining_combinations, 1);
                ncols = size(remaining_combinations, 2);
-               remaining_combinations(remaining_combinations == 0) = [];
+               remaining_combinations(combination_status == 1) = [];
                remaining_combinations = reshape(remaining_combinations, ...
                    [nrows, ncols - computed_elements]);
                fprintf('Failed on the following combination:\n');
@@ -217,6 +227,8 @@ classdef Dataset < handle
                save([obj.DatasetRoot filesep ...
                    datestr(now, 30) '.mat'], 'obj', 'inputs', ...
                    'remaining_combinations');
+               poolobj = gcp('nocreate');
+               delete(poolobj);
                rethrow(err);
            end
            
