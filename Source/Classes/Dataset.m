@@ -103,10 +103,6 @@ classdef Dataset < handle
             obj.dataLoop(func, analyses, varargin{:});    
         end
         
-        function perform(obj, func)
-            obj.dataLoop(func, []);
-        end
-        
     end
     
     methods (Access = ?DatasetElement)
@@ -193,7 +189,7 @@ classdef Dataset < handle
            
            % For every combination of subject and context parameters...
            try
-               for combination = 1:n_combinations
+               parfor combination = 1:n_combinations
                    % Note the current attempt.
                    send(attempt, combination);
                    

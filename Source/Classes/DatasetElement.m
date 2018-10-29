@@ -27,18 +27,6 @@ classdef DatasetElement < handle
         AdjustedModelPath
     end
     
-    methods 
-       
-        function files = getForceFiles(obj)
-            files = DatasetElement.filesFromFolder(obj.ForcesFolderPath);
-        end
-        
-        function files = getMotionFiles(obj)
-            files = DatasetElement.filesFromFolder(obj.MotionFolderPath);
-        end
-        
-    end
-    
     methods (Access = ?Dataset)
 
         function obj = DatasetElement(dataset, subject, parameters)
@@ -148,19 +136,6 @@ classdef DatasetElement < handle
             path = [obj.ParentDataset.getModelFolderPath() filesep name];
         end
        
-    end
-    
-    methods (Static, Access = private)
-        
-        function files = filesFromFolder(path)
-            names = dirNoDots(path);
-            n_files = length(names);
-            files = cell(1, n_files);
-            for i=1:n_files
-                files{i} = [path filesep names(i).name];
-            end
-        end
-        
     end
 
 end
