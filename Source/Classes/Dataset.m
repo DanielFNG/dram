@@ -188,7 +188,10 @@ classdef Dataset < handle
                waitbar(computed_elements/n_combinations, progress);
            end
            
-           warning('off', 'MATLAB:DELETE:PermissionDenied');
+           % Disable permission denied warning for all workers. 
+           spmd
+            warning('off', 'MATLAB:DELETE:PermissionDenied');
+           end
            
            % For every combination of subject and context parameters...
            try
