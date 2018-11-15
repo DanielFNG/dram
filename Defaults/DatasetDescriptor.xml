@@ -54,11 +54,11 @@
             </Load>
         </LoadSet>
         <OpenSimSettings>
-            </IK>
-            </RRA>
-            </BK>
-            </ID>
-            </CMC>
+            <IK/>
+            <RRA/>
+            <BK/>
+            <ID/>
+            <CMC/>
         </OpenSimSettings>
     </DatasetDescriptor>
 </GATDocument>
