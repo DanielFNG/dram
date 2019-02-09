@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<GATDocument Version="0.1">
+    <DatasetDescriptor>
+        <Type> Gait </Type>
+        <Strings>
+            <SubjectPrefix> S </SubjectPrefix>
+            <DataFolderName> Data </DataFolderName>
+            <MarkersFolderName> Markers </MarkersFolderName>
+            <ForcesFolderName> Forces </ForcesFolderName>
+            <ModelFolderName> Models </ModelFolderName>
+            <AdjustmentFolderName> Adjustment </AdjustmentFolderName>
+            <ResultsFolderName> Results </ResultsFolderName>
+        </Strings>
+        <Subjects> 1 2 3 4 6 7 8 </Subjects>
+        <ContextParameters>
+            <Parameter>
+                <Name> Assistance </Name>
+				<Values> NE ET EA </Values>
+            </Parameter>
+            <Parameter>
+                <Name> Context </Name>
+				<Values> BW IW DW FW SW </Values>
+				<AdjustmentValue> 2 </AdjustmentValue>
+            </Parameter>
+            <RecordingsPerTrial> </RecordingsPerTrial>
+            <ModelParameter> Assistance </ModelParameter>
+        </ContextParameters>
+        <ModelSet>
+            <HumanModel> gait2392_simbody.osim </HumanModel>
+            <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
+            <Model>
+                <Name> no_APO.osim </Name>
+                <ParameterValues> 1 </ParameterValues>
+                <AdjustmentValue> 1 </AdjustmentValue>
+            </Model>
+            <Model>
+                <Name> APO.osim </Name>
+                <ParameterValues> 2 3 </ParameterValues>
+                <AdjustmentValue> 2 </AdjustmentValue> 
+            </Model>
+        </ModelSet>
+        <LoadSet>
+            <Load>
+                <Name> normal.xml </Name>
+                <ParameterValues> 1 2 </ParameterValues>
+            </Load>
+            <Load>
+                <Name> apo.xml </Name>
+               <ParameterValues> 3 </ParameterValues>
+            </Load>
+        </LoadSet>
+        <OpenSimSettings>
+            <IK/>
+            <RRA/>
+            <BK/>
+            <ID/>
+            <CMC/>
+        </OpenSimSettings>
+    </DatasetDescriptor>
+</GATDocument>
