@@ -112,6 +112,16 @@ classdef Dataset < handle
             path = [obj.DatasetRoot filesep obj.DataFolderName];
         end
         
+        function path = getResultsFolderPath(obj)
+            % Path to external results folder.
+            path = [obj.DatasetRoot filesep obj.ResultsFolderName];
+        end
+        
+        function path = getAdjustmentFolderPath(obj)
+            % Path to adjustment folder.
+            path = [obj.DatasetRoot filesep obj.AdjustmentFolderName];
+        end
+        
         function path = getModelFolderPath(obj)
             % Path to external model folder. 
             path = [obj.DatasetRoot filesep obj.ModelFolderName];

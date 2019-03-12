@@ -20,6 +20,8 @@ classdef DatasetElement < handle
         Subject
         ParameterValues
         DataFolderPath
+        ResultsFolderPath
+        AdjustmentFolderPath
         MotionFolderPath
         ForcesFolderPath
         ModelFolderPath
@@ -47,15 +49,12 @@ classdef DatasetElement < handle
             % Adjust the model file using the RRA algorithm.
             
             % Get only the first marker and grf files. 
-            markers = dirNoDots(obj.MotionFolderPath);
-            forces = dirNoDots(obj.ForcesFolderPath);
+            [~, markers] = dirNoDots(obj.MotionFolderPath);
+            [~, forces] = dirNoDots(obj.ForcesFolderPath);
             
             % Create the OpenSimTrial.
-            trial = OpenSimTrial(obj.ModelPath, ...
-                [obj.MotionFolderPath filesep markers(1,1).name], ...
-                [obj.DataFolderPath filesep ...
-                obj.ParentDataset.AdjustmentFolderName], ...
-                [obj.ForcesFolderPath filesep forces(1,1).name]);
+            trial = OpenSimTrial(obj.ModelPath, markers{1}, ...
+                obj.AdjustmentFolderPath, forces{1});
             
             % Run an IK if necessary.
             if ~trial.computed.IK
@@ -79,9 +78,8 @@ classdef DatasetElement < handle
             end
             
             runBatch(analyses, model, obj.MotionFolderPath, ...
-                [obj.DataFolderPath filesep ...
-                obj.ParentDataset.ResultsFolderName], ...
-                obj.ForcesFolderPath, 'load', obj.constructLoadPath());
+                obj.ResultsFolderPath, obj.ForcesFolderPath, ...
+                'load', obj.constructLoadPath());
         end
         
     end
@@ -112,6 +110,12 @@ classdef DatasetElement < handle
                 obj.ParentDataset.MotionFolderName];
             obj.ForcesFolderPath = [obj.DataFolderPath filesep ...
                 obj.ParentDataset.ForcesFolderName];
+            obj.ResultsFolderPath = ...
+                [obj.ParentDataset.getResultsFolderPath() filesep ...
+                obj.constructSubjectFolderName() name];
+            obj.AdjustmentFolderPath = ...
+                [obj.ParentDataset.getAdjustmentFolderPath() filesep ...
+                obj.constructSubjectFolderName() name];
         end
         
         function constructModelPath(obj)
