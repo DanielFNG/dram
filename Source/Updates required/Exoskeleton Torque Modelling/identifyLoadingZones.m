@@ -1,7 +1,7 @@
 function [l1, u1, l2, u2, lo] = identifyLoadingZones(torque)
 % This function accepts a torque vector which is assumed to be bimodal with 
-% peaks of opposite sign. It returns 4 sets of 
-% indices corresponding to the first/second loading/unloading zones. 
+% peaks of opposite sign. It returns 4 sets of indices corresponding to the 
+% first/second loading/unloading zones. 
 
 n_indices = length(torque);
 indices = (1:n_indices).';
