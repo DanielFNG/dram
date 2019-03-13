@@ -14,6 +14,12 @@ classdef DatasetElement < handle
     %
     %   Users are unable to use DatasetElements directly. Instead, they are
     %   created by the Dataset class as part of the process method.
+    
+    properties 
+        Processed = false
+        Trials
+        Motions
+    end
 
     properties (Access = ?Dataset)
         ParentDataset
@@ -36,13 +42,15 @@ classdef DatasetElement < handle
             % particular subject, and an ordered vector of context
             % parameters.
             
-            obj.ParentDataset = dataset;
-            obj.Subject = subject;
-            obj.ParameterValues = parameters;
-            obj.ModelFolderPath = dataset.getModelFolderPath();
-            obj.constructDataPaths();
-            obj.constructModelPath();
-            obj.constructAdjustedModelPath();
+            if nargin > 0
+                obj.ParentDataset = dataset;
+                obj.Subject = subject;
+                obj.ParameterValues = parameters;
+                obj.ModelFolderPath = dataset.getModelFolderPath();
+                obj.constructDataPaths();
+                obj.constructModelPath();
+                obj.constructAdjustedModelPath();
+            end
         end
         
         function performModelAdjustment(obj)
@@ -77,9 +85,23 @@ classdef DatasetElement < handle
                 model = obj.ModelPath;
             end
             
-            runBatch(analyses, model, obj.MotionFolderPath, ...
+            obj.Trials = runBatch(analyses, model, obj.MotionFolderPath, ...
                 obj.ResultsFolderPath, obj.ForcesFolderPath, ...
                 'load', obj.constructLoadPath());
+            
+            obj.Processed = true;
+        end
+        
+        function loadAnalyses(obj, analyses)
+            
+            n_trials = length(obj.Trials);
+            obj.Motions = cell(1, n_trials);
+            
+            for i=1:n_trials
+                motion_data = MotionData(obj.Trials{i}, 
+                obj.Motions{i} = 
+            end
+                
         end
         
     end

@@ -25,6 +25,7 @@ classdef Dataset < handle
         ContextParameters
         ContextParameterRanges
         ModelAdjustmentCompleted = false
+        Elements
     end
     
     properties (Access = {?DatasetElement, ?Dataset})
@@ -58,6 +59,7 @@ classdef Dataset < handle
             if nargin > 0
                 obj.DatasetRoot = root;
                 obj.parseDatasetDescriptor();
+                obj.populate();
             end
         end
         
@@ -101,6 +103,31 @@ classdef Dataset < handle
             
             % Perform dataLoop.
             obj.dataLoop(func, analyses, varargin{:});    
+        end
+        
+        function load(obj, analyses)
+           
+            % Function to run - loading of data.
+            func = @load;
+            
+            % Perform dataLoop.
+            obj.dataLoop(func, analyses);
+            
+        end
+        
+        function compute(obj, metrics, args)
+            
+            for i=1:length(metrics)
+                
+                % Function to run - metric.
+                func = metrics{i};
+                arg = args{i};
+                
+                % Perform dataLoop.
+                obj.dataLoop(func, arg{:});
+                
+            end
+            
         end
         
     end
@@ -151,6 +178,27 @@ classdef Dataset < handle
             %   Required for DataSubset.
             values = obj.ModelAdjustmentValues;
        end
+       
+       function populate(obj)
+       % Create and store the DatasetElements which populate this Dataset.
+           
+           % Create all possible combinations of the context parameters.
+           params = obj.getDesiredParameterValues();
+           combos = combvec(obj.getDesiredSubjectValues(), params{1, :});
+           n_combinations = length(combos);
+           
+           % Initialise an empty cell array to store the DatasetElements. 
+           elements(n_combinations) = DatasetElement;
+           obj.Elements = elements;
+           
+           % Create each DatasetElement in turn. 
+           for i=1:n_combinations
+               % Create a DatasetElement.
+               obj.Elements(i) = DatasetElement(...
+                   obj, combos(1, i), combos(2:end, i));
+           end
+           
+       end
         
        function dataLoop(obj, func, inputs, combinations)
            % Loops over data to process or load data.
@@ -161,12 +209,8 @@ classdef Dataset < handle
            %   fixed (see resume function).
            
            if nargin == 3
-               % Create all possible combinations of the context parameters.
-               params = obj.getDesiredParameterValues();
-               remaining_combinations = combvec(...
-                   obj.getDesiredSubjectValues(), params{1,:});
-           elseif nargin == 4
-               % Continue from previous state.
+               remaining_combinations = 1:length(obj.Elements);
+           elseif nargin == 5
                remaining_combinations = combinations;
            else
                error('Incorrect input arguments to dataLoop.');
@@ -178,16 +222,17 @@ classdef Dataset < handle
            % Create a record of the current attempt. 
            attempt = parallel.pool.DataQueue;
            current_attempt = 0;
-           afterEach(attempt, @noteCurrentAttempt);
+           afterEach(attempt, ...
+               @(n) (noteCurrentAttempt(n, remaining_combinations)));
            
-           function noteCurrentAttempt(n)
-               current_attempt = remaining_combinations(:, n);
+           function noteCurrentAttempt(n, remaining_combinations)
+               current_attempt = remaining_combinations(n);
            end
            
            % Create a parallel waitbar + record of remaining combinations.
            queue = parallel.pool.DataQueue;
-           n_combinations = size(remaining_combinations, 2);
-           combination_status = zeros(1, n_combinations);
+           n_elements = length(remaining_combinations);
+           combination_status = zeros(1, n_elements);
            computed_elements = 0;
            progress = waitbar(0, 'Processing data...');
            afterEach(queue, @updateCombinations);
@@ -195,7 +240,7 @@ classdef Dataset < handle
            function updateCombinations(n)
                combination_status(n) = 1;
                computed_elements = computed_elements + 1;
-               waitbar(computed_elements/n_combinations, progress);
+               waitbar(computed_elements/n_elements, progress);
            end
            
            % Disable permission denied warning for all workers. 
@@ -203,19 +248,23 @@ classdef Dataset < handle
             warning('off', 'MATLAB:DELETE:PermissionDenied');
            end
            
+           % Get the element array in sliceable form.
+           elements = obj.Elements(remaining_combinations);
+           
            % For every combination of subject and context parameters...
            try
-               parfor combination = 1:n_combinations
+               parfor combination = 1:n_elements
                    % Note the current attempt.
                    send(attempt, combination);
                    
-                   % Create a DatasetElement.
-                   element = DatasetElement(obj, ...
-                       remaining_combinations(1, combination), ...
-                       remaining_combinations(2:end, combination));
+                   % Access the specifc element.
+                   element = elements(combination);
                    
                    % Perform the handle functions in turn.
-                   func(element, inputs); %#ok<*PFBNS>
+                   feval(func, element, inputs);
+                   
+                   % Assign back to elements array.
+                   elements(combination) = element;
                    
                    % Send data to queue to allow waitbar to update as well
                    % as the remaining combinations.
@@ -223,20 +272,18 @@ classdef Dataset < handle
                    
                    [~, info] = memory;
                    proportion_free = ...
-                       info.PhysicalMemory.Total/info.PhysicalMemory.Available
+                       info.PhysicalMemory.Total/info.PhysicalMemory.Available;
                    if proportion_free < 0.1
                        error('Running out of RAM. Please resume from save.');
                    end
                end
            catch err
                close(progress);
-               nrows = size(remaining_combinations, 1);
-               ncols = size(remaining_combinations, 2);
-               remaining_combinations(combination_status == 1) = [];
-               remaining_combinations = reshape(remaining_combinations, ...
-                   [nrows, ncols - computed_elements]);
-               fprintf('Failed on the following combination:\n');
-               current_attempt %#ok<NOPRT>
+               success = remaining_combinations(combination_status == 1);
+               obj.Elements(success) = elements(success);
+               remaining_combinations(combination_status == 1) = []; %#ok<NASGU>
+               fprintf('Failed on the following element:\n');
+               obj.Elements(current_attempt) 
                save([obj.DatasetRoot filesep ...
                    datestr(now, 30) '.mat'], 'obj', 'inputs', ...
                    'remaining_combinations');
@@ -244,6 +291,9 @@ classdef Dataset < handle
                delete(poolobj);
                rethrow(err);
            end
+           
+           % Update the Elements property.
+           obj.Elements(remaining_combinations) = elements;
            
            % Print closing message & close loading bar.
            fprintf('Data processing complete.\n');
@@ -384,7 +434,7 @@ classdef Dataset < handle
             %   processing or loading from the point of failure.
             
             load(filename, 'obj', 'inputs', 'remaining_combinations');
-            obj.process(inputs, remaining_combinations);
+            obj.process(inputs, elements);
         end
     end
     

@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <DatasetDescriptor Version="0.1">
     <Type> Gait </Type>
+    <ExperimentalDetails>
+        <GRFCutoff> 2 </GRFCutoff>
+        <MotionSpeed> 0.8 </MotionSpeed>
+        <MotionDirection> x </MotionDirection>
+    </ExperimentalDetails>
     <Strings>
         <SubjectPrefix> S </SubjectPrefix>
         <DataFolderName> Data </DataFolderName>
