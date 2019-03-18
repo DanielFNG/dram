@@ -21,7 +21,7 @@ classdef DatasetElement < handle
         Motions
     end
 
-    properties (Access = ?Dataset)
+    properties %(Access = ?Dataset)
         ParentDataset
         Subject
         ParameterValues
@@ -98,8 +98,19 @@ classdef DatasetElement < handle
             obj.Motions = cell(1, n_trials);
             
             for i=1:n_trials
-                motion_data = MotionData(obj.Trials{i}, 
-                obj.Motions{i} = 
+                subject_index = find(obj.ParentDataset.Subjects == obj.Subject);
+                motion_data = MotionData(obj.Trials{i}, ...
+                    obj.ParentDataset.LegLengths(subject_index), ...
+                    obj.ParentDataset.ToeLengths(subject_index), ...
+                    analyses, obj.ParentDataset.GRFCutoff);
+                switch obj.ParentDataset.Type
+                    case 'Motion'
+                        obj.Motions{i} = Motion(motion_data);
+                    case 'Gait'
+                        obj.Motions{i} = Gait(motion_data);
+                    case 'GaitCycles'
+                        obj.Motions{i} = GaitCycle(motion_data);
+                end
             end
                 
         end

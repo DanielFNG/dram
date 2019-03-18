@@ -29,6 +29,10 @@ classdef Dataset < handle
     end
     
     properties (Access = {?DatasetElement, ?Dataset})
+        Type = 'GaitCycles'
+        GRFCutoff = 25
+        LegLengths
+        ToeLengths
         NContextParameters
         ModelParameterIndex
         AdjustmentSuffix
@@ -108,7 +112,7 @@ classdef Dataset < handle
         function load(obj, analyses)
            
             % Function to run - loading of data.
-            func = @load;
+            func = @loadAnalyses;
             
             % Perform dataLoop.
             obj.dataLoop(func, analyses);
@@ -342,6 +346,16 @@ classdef Dataset < handle
             % Get the subject vector. 
             subjects = xml_data.getElementsByTagName('Subjects');
             obj.Subjects = str2num(strtrim(char(subjects.item(0). ...
+                item(0).getData()))); %#ok<ST2NM>
+            
+            % Get the leg length vector.
+            leg_lengths = xml_data.getElementsByTagName('LegLengths');
+            obj.LegLengths = str2num(strtrim(char(leg_lengths.item(0). ...
+                item(0).getData()))); %#ok<ST2NM>
+            
+            % Get the toe length vector.
+            toe_lengths = xml_data.getElementsByTagName('ToeLengths');
+            obj.ToeLengths = str2num(strtrim(char(toe_lengths.item(0). ...
                 item(0).getData()))); %#ok<ST2NM>
 
             % Get the context parameter data.
