@@ -119,17 +119,20 @@ classdef Dataset < handle
             
         end
         
-        function compute(obj, metrics, args)
+        function observations = compute(obj, metric, args)
             
-            for i=1:length(metrics)
-                
-                % Function to run - metric.
-                func = metrics{i};
-                arg = args{i};
-                
-                % Perform dataLoop.
-                obj.dataLoop(func, arg{:});
-                
+            n_subjects = length(obj.Subjects);
+            n_assistances = length(obj.ContextParameterRanges{1});
+            n_speeds = length(obj.ContextParameterRanges{2});
+            
+            observations = zeros(n_speeds * n_subjects, n_assistances);
+            
+            for i=1:length(obj.Elements)
+                subject = find(obj.Subjects == obj.Elements(i).Subject);
+                assistance = obj.Elements(i).ParameterValues(1);
+                speed = obj.Elements(i).ParameterValues(2);
+                observations((speed - 1)*n_subjects + subject, assistance) = ...
+                    obj.Elements(i).computeMetric(metric, args);
             end
             
         end

@@ -115,6 +115,18 @@ classdef DatasetElement < handle
                 
         end
         
+        function observation = computeMetric(obj, metric, args)
+           
+            n_motions = length(obj.Motions);
+            observations = zeros(1, n_motions);
+            for i=1:n_motions
+                observations(i) = metric(obj.Motions{i}, args{:});
+            end
+            
+            observation = mean(observations);
+            
+        end
+        
     end
         
     methods (Access = private)
