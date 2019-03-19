@@ -381,7 +381,7 @@ classdef MetricStats2D < handle
                 if obj.row_diffs(i, 6) < obj.p_value
                     mx = max(max(vals)) + j*max(max(vals));
                     j = j + 0.2;
-                    x = ones(1,2)*5.4;
+                    x = ones(1,2)*(obj.n_rows + 0.4);
                     y = [obj.row_diffs(i,1); obj.row_diffs(i,2)];
                     z = ones(1,2)*mx;
                     plot3(x,y,z,'-k.','linewidth',1);
