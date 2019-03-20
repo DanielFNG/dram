@@ -125,13 +125,14 @@ classdef Dataset < handle
             n_assistances = length(obj.ContextParameterRanges{1});
             n_speeds = length(obj.ContextParameterRanges{2});
             
-            observations = zeros(n_speeds * n_subjects, n_assistances);
+            observations = zeros(n_speeds * n_subjects * 5, n_assistances);
             
             for i=1:length(obj.Elements)
                 subject = find(obj.Subjects == obj.Elements(i).Subject);
                 assistance = obj.Elements(i).ParameterValues(1);
                 speed = obj.Elements(i).ParameterValues(2);
-                observations((speed - 1)*n_subjects + subject, assistance) = ...
+                this = ((speed - 1)*n_subjects + subject - 1)*5 + 1;
+                observations(this:this + 4, assistance) = ...
                     obj.Elements(i).computeMetric(metric, args);
             end
             
