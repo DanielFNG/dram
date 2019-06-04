@@ -120,6 +120,9 @@ classdef Dataset < handle
         end
         
         function observations = compute(obj, metric, args)
+        % Note: this function is currently very hard coded and was used to 
+        % process some data from the Exoskeleton Gait Metrics dataset. 
+        % Obviously this needs to be generalised. 
             
             n_subjects = length(obj.Subjects);
             n_assistances = length(obj.ContextParameterRanges{1});
