@@ -119,6 +119,41 @@ classdef Dataset < handle
             
         end
         
+        function [subject_means, overall_mean, overall_sdev] = ...
+                computeTrajectories(obj, joint)
+        % Another hard coded function for innovation funding.
+        
+            n_subjects = 1;
+            
+            subject_means = zeros(n_subjects, 100);
+            overall_mean = zeros(1, 100);
+            overall_sdev = zeros(1, 100);
+            
+            overall_traj = zeros(46*n_subjects, 100);
+            count = 1;
+            
+            for i=1
+                
+                n_motions = length(obj.Elements(i).Motions);
+                spline_to = 100;
+                outer_traj = zeros(n_motions, 100);
+                for j=1:length(obj.Elements(i).Motions)
+                    gc = obj.Elements(i).Motions{j};
+                    traj = gc.getJointTrajectory(joint);
+                    outer_traj(j, :) = stretchVector(traj, spline_to);
+                    overall_traj(count, :) = stretchVector(traj, spline_to);
+                    count = count + 1;
+                end
+                    
+                subject_means(i, :) = mean(outer_traj);
+                
+            end
+            
+            overall_mean(:) = mean(overall_traj);
+            overall_sdev(:) = std(overall_traj);
+            
+        end
+        
         function observations = compute(obj, metric, args)
         % Note: this function is currently very hard coded and was used to 
         % process some data from the Exoskeleton Gait Metrics dataset. 
@@ -196,7 +231,7 @@ classdef Dataset < handle
            % Create all possible combinations of the context parameters.
            params = obj.getDesiredParameterValues();
            combos = combvec(obj.getDesiredSubjectValues(), params{1, :});
-           n_combinations = length(combos);
+           n_combinations = size(combos, 2);
            
            % Initialise an empty cell array to store the DatasetElements. 
            elements(n_combinations) = DatasetElement;
