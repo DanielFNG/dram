@@ -119,6 +119,30 @@ classdef Dataset < handle
             
         end
         
+        function [overall_mean, overall_sdev] = computeObservations(obj, func)
+        % Another hard coded function for innovation funding.
+        
+            n_subjects = 1;
+            
+            overall_obs = zeros(46*n_subjects, 1);
+            %overall_obs = zeros(5*n_subjects, 1);
+            count = 1;
+            
+            for i=1
+                
+                for j=1:length(obj.Elements(i).Motions)
+                    gc = obj.Elements(i).Motions{j};
+                    overall_obs(count, 1) = func(gc);
+                    count = count + 1;
+                end
+                
+            end
+            
+            overall_mean = mean(overall_obs);
+            overall_sdev = std(overall_obs);
+            
+        end
+        
         function [subject_means, overall_mean, overall_sdev] = ...
                 computeTrajectories(obj, joint)
         % Another hard coded function for innovation funding.
@@ -130,6 +154,7 @@ classdef Dataset < handle
             overall_sdev = zeros(1, 100);
             
             overall_traj = zeros(46*n_subjects, 100);
+            %overall_traj = zeros(5*n_subjects, 100);
             count = 1;
             
             for i=1
