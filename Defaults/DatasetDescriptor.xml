@@ -1,56 +1,55 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <DatasetDescriptor Version="0.1">
-    <Type> Gait </Type>
-    <ExperimentalDetails>
-        <GRFCutoff> 2 </GRFCutoff>
-        <MotionSpeed> 0.8 </MotionSpeed>
-        <MotionDirection> x </MotionDirection>
-    </ExperimentalDetails>
-    <Strings>
-        <SubjectPrefix> S </SubjectPrefix>
-        <DataFolderName> Data </DataFolderName>
-        <MarkersFolderName> Markers </MarkersFolderName>
-        <ForcesFolderName> Forces </ForcesFolderName>
-        <ModelFolderName> Models </ModelFolderName>
-        <AdjustmentFolderName> Adjustment </AdjustmentFolderName>
-        <ResultsFolderName> Results </ResultsFolderName>
-    </Strings>
-    <Subjects> 1 2 3 4 6 7 8 </Subjects>
-    <ContextParameters>
-        <ModelParameter> Assistance </ModelParameter>
-        <Parameter>
-            <Name> Assistance </Name>
-            <Values> 1 2 3 </Values>
-        </Parameter>
-        <Parameter>
-            <Name> Context </Name>
-            <Values> 2 4 6 8 10 </Values>
-            <AdjustmentValue> 2 </AdjustmentValue>
-        </Parameter>
-    </ContextParameters>
-    <ModelSet>
-        <HumanModel> gait2392_simbody.osim </HumanModel>
-        <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
-        <Model>
-            <Name> no_APO.osim </Name>
-            <ParameterValues> 1 </ParameterValues>
-            <AdjustmentValue> 1 </AdjustmentValue>
-        </Model>
-        <Model>
-            <Name> APO.osim </Name>
-            <ParameterValues> 2 3 </ParameterValues>
-            <AdjustmentValue> 2 </AdjustmentValue> 
-        </Model>
-    </ModelSet>
-    <LoadSet>
-        <Load>
-            <Name> normal.xml </Name>
-            <ParameterValues> 1 2 </ParameterValues>
-        </Load>
-        <Load>
-            <Name> apo.xml </Name>
-            <ParameterValues> 3 </ParameterValues>
-        </Load>
-    </LoadSet>
-    <OpenSimSettings> Folder </OpenSimSettings>
+        <Type> Gait </Type>
+        <Strings>
+            <SubjectPrefix> Subject </SubjectPrefix>
+            <DataFolderName> Data </DataFolderName>
+            <MarkersFolderName> Markers </MarkersFolderName>
+            <ForcesFolderName> Forces </ForcesFolderName>
+            <ModelFolderName> Models </ModelFolderName>
+			<AdjustmentFolderName> Adjustment </AdjustmentFolderName>
+            <ResultsFolderName> Results </ResultsFolderName>
+        </Strings>
+        <ProcessingInformation>
+            <GRFCutoff> 2 </GRFCutoff>
+            <LinkedSystem> 1 </LinkedSystem>
+            <System>
+                <Forward> +y </Forward>
+                <Upwards> -z </Upwards>
+                <Right> +x </Right>
+            </System>
+            <Compensation> 0 </Compensation>
+        </ProcessingInformation>
+		<SubjectInformation>
+			<Subjects> 1 2 3 4 6 7 8 </Subjects>
+			<LegLengths> 0.93 0.93 0.91 0.90 0.97 0.94 0.95 </LegLengths>
+			<ToeLengths> 0.08 0.07 0.1 0.06 0.1 0.085 0.1 </ToeLengths>
+		</SubjectInformation>
+        <ContextParameters>
+            <ModelParameter> Assistance </ModelParameter>
+            <Parameter>
+                <Name> Assistance </Name>
+				<Values> 1 </Values>
+            </Parameter>
+            <Parameter>
+                <Name> Speed </Name>
+				<Values> 1 </Values>
+				<AdjustmentValue> 1 </AdjustmentValue>
+            </Parameter>
+        </ContextParameters>
+        <ModelSet>
+			<HumanModel> gait2392_simbody.osim </HumanModel>
+            <AdjustmentSuffix> _adjusted </AdjustmentSuffix>
+            <Model>
+                <Name> no_APO.osim </Name>
+                <ParameterValues> 1 </ParameterValues>
+                <AdjustmentValue> 1 </AdjustmentValue>
+            </Model>
+        </ModelSet>
+		<LoadSet>
+            <Load>
+                <Name> normal.xml </Name>
+                <ParameterValues> 1 </ParameterValues>
+            </Load>
+        </LoadSet>
 </DatasetDescriptor>
