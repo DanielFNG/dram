@@ -109,6 +109,16 @@ classdef Dataset < handle
             obj.dataLoop(func, analyses, varargin{:});    
         end
         
+        function assert(obj, analyses)
+           
+            % Function to run - assertComputed.
+            func = @assertComputed;
+            
+            % Perform dataLoop.
+            obj.dataLoop(func, analyses);
+            
+        end
+        
         function load(obj, analyses)
            
             % Function to run - loading of data.
@@ -316,7 +326,7 @@ classdef Dataset < handle
            
            % Disable permission denied warning for all workers. 
            spmd
-            warning('off', 'MATLAB:DELETE:PermissionDenied');
+               warning('off', 'MATLAB:DELETE:PermissionDenied');
            end
            
            % Get the element array in sliceable form.
@@ -324,7 +334,7 @@ classdef Dataset < handle
            
            % For every combination of subject and context parameters...
            try
-               parfor combination = 1:n_elements
+               for combination = 1:n_elements
                    % Note the current attempt.
                    send(attempt, combination);
                    
@@ -409,6 +419,9 @@ classdef Dataset < handle
             obj.HumanModel = ...
                 strtrim(char(xml_data.getElementsByTagName(...
                 'HumanModel').item(0).item(0).getData()));
+            
+            % Get the GRF cutoff value.
+            
             
             % Get the subject vector. 
             subjects = xml_data.getElementsByTagName('Subjects');

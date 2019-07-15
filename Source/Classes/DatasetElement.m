@@ -92,6 +92,15 @@ classdef DatasetElement < handle
             
         end
         
+        function assertComputed(obj, analyses)
+            % Assert that the provided analyses have been computed.
+            
+            for i=1:length(obj.Trials)
+                obj.Trials{i}.assertComputed(analyses);
+            end
+            
+        end
+        
         function runAnalyses(obj, analyses)
             % Runs batch of OpenSim analyses on the input data.
             
