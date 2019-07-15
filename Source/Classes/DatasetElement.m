@@ -50,6 +50,7 @@ classdef DatasetElement < handle
                 obj.constructDataPaths();
                 obj.constructModelPath();
                 obj.constructAdjustedModelPath();
+                obj.createTrials();
             end
         end
         
@@ -76,8 +77,9 @@ classdef DatasetElement < handle
                 'load', obj.constructLoadPath());
         end
         
-        function runAnalyses(obj, analyses)
-            % Runs batch of OpenSim analyses on the input data.
+        function createTrials(obj)
+            % Create OpenSimTrial objects based on DatasetElement
+            % parameters.
             
             if obj.ParentDataset.ModelAdjustmentCompleted
                 model = obj.AdjustedModelPath;
@@ -85,9 +87,15 @@ classdef DatasetElement < handle
                 model = obj.ModelPath;
             end
             
-            obj.Trials = runBatch(analyses, model, obj.MotionFolderPath, ...
-                obj.ResultsFolderPath, obj.ForcesFolderPath, ...
-                'load', obj.constructLoadPath());
+            obj.Trials = createTrials(model, obj.MotionFolderPath, ...
+                obj.ResultsFolderPath, obj.ForcesFolderPath);
+            
+        end
+        
+        function runAnalyses(obj, analyses)
+            % Runs batch of OpenSim analyses on the input data.
+            
+            runBatch(analyses, obj.Trials, 'load', obj.constructLoadPath());
             
             obj.Processed = true;
         end
