@@ -132,6 +132,8 @@ classdef Dataset < handle
             
         end
         
+        
+        %% Temporary, hard-coded functions 
         function [overall_mean, overall_sdev] = computeObservations(obj, func)
         % Another hard coded function for innovation funding.
         
