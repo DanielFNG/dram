@@ -12,13 +12,19 @@
         </Strings>
         <ProcessingInformation>
             <GRFCutoff> 2 </GRFCutoff>
-            <LinkedSystem> 1 </LinkedSystem>
-            <System>
-                <Forward> +y </Forward>
-                <Upwards> -z </Upwards>
-                <Right> +x </Right>
-            </System>
-            <Compensation> 0 </Compensation>
+            <Delay> 0 </Delay>
+            <Coordinates>
+                <Markers>
+                    <Forward> +z </Forward>
+                    <Upwards> +y </Upwards>
+                    <Right> -x </Right>
+                </Markers>
+                <GRF>
+                    <Forward> +y </Forward>
+                    <Upwards> -z </Upwards>
+                    <Right> +x </Right>
+                </GRF>
+            </Coordinates>
         </ProcessingInformation>
 		<SubjectInformation>
 			<Subjects> 1 2 3 4 6 7 8 </Subjects>
