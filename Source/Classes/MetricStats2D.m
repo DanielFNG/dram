@@ -1,5 +1,5 @@
 % A class for statistically analysing two-dimensional data.
-% In particular it can be used for walking data indexed by walking 
+% For example it can be used for walking data indexed by walking 
 % context (speed, incline, etc) and assistance level (humans walking
 % with powered exoskeletons or prostheses). 
 classdef MetricStats2D < handle
