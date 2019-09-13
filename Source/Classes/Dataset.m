@@ -339,7 +339,7 @@ classdef Dataset < handle
            
            % For every combination of subject and context parameters...
            try
-               for combination = 1:n_elements
+               parfor combination = 1:n_elements
                    % Note the current attempt.
                    send(attempt, combination);
                    
