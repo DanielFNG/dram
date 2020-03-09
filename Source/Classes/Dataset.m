@@ -30,7 +30,6 @@ classdef Dataset < handle
     
     properties %(Access = {?DatasetElement, ?Dataset})
         Type = 'GaitCycles'
-        GRFCutoff
         Delay
         MarkerSystem
         GRFSystem
@@ -170,6 +169,7 @@ classdef Dataset < handle
             
             overall_traj = zeros(46*n_subjects, 100);
             %overall_traj = zeros(5*n_subjects, 100);
+            mass = obj.Elements(1).Trials{1}.getInputModelMass;
             count = 1;
             
             for i=1
@@ -426,9 +426,6 @@ classdef Dataset < handle
                 'HumanModel').item(0).item(0).getData()));
             
             % Get the processing information.
-            obj.GRFCutoff = ...
-                str2double(strtrim(char(xml_data.getElementsByTagName(...
-                'GRFCutoff').item(0).item(0).getData())));
             obj.Delay = ...
                 str2double(strtrim(char(xml_data.getElementsByTagName(...
                 'Delay').item(0).item(0).getData())));
